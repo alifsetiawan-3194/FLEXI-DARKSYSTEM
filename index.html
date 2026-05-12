@@ -56,98 +56,100 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-    <script>
-        const geoMapping = {
-            "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
-            "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
-            "0025": { name: "CB BEKASI", lat: -6.238472, lng: 106.975417 },
-            "0110": { name: "CB BANDUNG", lat: -6.9175, lng: 107.6191 },
-            "0140": { name: "CB CIREBON", lat: -6.7320, lng: 108.5523 },
-            "0310": { name: "CB SEMARANG", lat: -6.9667, lng: 110.4167 },
-            "0320": { name: "CB SOLO", lat: -7.5661, lng: 110.8243 },
-            "0330": { name: "CB TEMANGGUNG", lat: -7.3167, lng: 110.1667 },
-            "0350": { name: "CB YOGYAKARTA", lat: -7.7956, lng: 110.3695 },
-            "0410": { name: "CB SURABAYA", lat: -7.2575, lng: 112.7521 },
-            "0411": { name: "CB SIDOARJO", lat: -7.4478, lng: 112.7183 },
-            "0420": { name: "CB MALANG", lat: -7.9839, lng: 112.6214 },
-            "0430": { name: "CB LAMONGAN", lat: -7.1192, lng: 112.4153 },
-            "1110": { name: "CB MEDAN", lat: 3.5952, lng: 98.6722 },
-            "1310": { name: "CB PEKANBARU", lat: 0.5071, lng: 101.4478 },
-            "1312": { name: "CB LUBUK DALAM", lat: 0.6125, lng: 101.8152 },
-            "1313": { name: "CB UJUNG BATU", lat: 0.7042, lng: 100.5408 },
-            "1314": { name: "CB AIR MOLEK", lat: -0.4578, lng: 102.2858 },
-            "1315": { name: "KK DALU DALU", lat: 1.1333, lng: 100.4667 },
-            "1520": { name: "CB PALEMBANG", lat: -2.9761, lng: 104.7754 },
-            "1710": { name: "CB LAMPUNG", lat: -5.3971, lng: 105.2668 },
-            "3210": { name: "CB MAKASSAR", lat: -5.1476, lng: 119.4327 },
-            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 },
-        };
+   <script>
+    const geoMapping = {
+        "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
+        "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
+        "0025": { name: "CB BEKASI", lat: -6.238472, lng: 106.975417 },
+        "0110": { name: "CB BANDUNG", lat: -6.9175, lng: 107.6191 },
+        "0140": { name: "CB CIREBON", lat: -6.7320, lng: 108.5523 },
+        "0310": { name: "CB SEMARANG", lat: -6.9667, lng: 110.4167 },
+        "0320": { name: "CB SOLO", lat: -7.5661, lng: 110.8243 },
+        "0330": { name: "CB TEMANGGUNG", lat: -7.3167, lng: 110.1667 },
+        "0350": { name: "CB YOGYAKARTA", lat: -7.7956, lng: 110.3695 },
+        "0410": { name: "CB SURABAYA", lat: -7.2575, lng: 112.7521 },
+        "0411": { name: "CB SIDOARJO", lat: -7.4478, lng: 112.7183 },
+        "0420": { name: "CB MALANG", lat: -7.9839, lng: 112.6214 },
+        "0430": { name: "CB LAMONGAN", lat: -7.1192, lng: 112.4153 },
+        "1110": { name: "CB MEDAN", lat: 3.5952, lng: 98.6722 },
+        "1310": { name: "CB PEKANBARU", lat: 0.5071, lng: 101.4478 },
+        "1312": { name: "CB LUBUK DALAM", lat: 0.6125, lng: 101.8152 },
+        "1313": { name: "CB UJUNG BATU", lat: 0.7042, lng: 100.5408 },
+        "1314": { name: "CB AIR MOLEK", lat: -0.4578, lng: 102.2858 },
+        "1315": { name: "KK DALU DALU", lat: 1.1333, lng: 100.4667 },
+        "1520": { name: "CB PALEMBANG", lat: -2.9761, lng: 104.7754 },
+        "1710": { name: "CB LAMPUNG", lat: -5.3971, lng: 105.2668 },
+        "3210": { name: "CB MAKASSAR", lat: -5.1476, lng: 119.4327 },
+        "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
+    };
 
-        const rmReference = {
-            "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
-            "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
-            "RBO0025002023": "MUHAMAD MOZA KANDIRA", "RBO0110002068": "ARDINO OKAJINARTA",
-            "RBO0140001932": "MONICA ACHIR PUTRI", "RBO0310000656": "FITRA AMIRANTI",
-            "RBO0310000731": "YUNI KUSTANTI", "RBO0320001113": "MANIK LINTANG SUH MAHLIGAI",
-            "RBO0330001779": "ENDRI AGUSTIN", "RBO0330002011": "RIZQIKA ARDHANI SRI REJEKI",
-            "RBO0330002012": "MUHAMMAD ADITYA MUZAKKY", "RBO0350001670": "NOVI SETYAWATI",
-            "RBO0350001947": "RAMADITYA BAYU PAMUNGKAS", "RBO0350001954": "GIGIH MANGGALA",
-            "RBO0350002009": "KRISNA ALI PASHA PRATAMA PUTRA", "RBO0350002075": "ANTON SUSILO PRABOWO",
-            "RBO0410000579": "AKHMAD DWI PRAYUGI", "RBO0411002058": "NAUFAL FEBI MAHARDIKA",
-            "RBO0411002088": "MILA AZZAHRO AINI", "RBO0420002047": "RACHMAD MAHENDRA PUTRA",
-            "RBO0420002066": "YUSUF BACHRI", "RBO0430002046": "MEGA AYU LESTARI",
-            "RBO0430002069": "EGA AYU PRAMITASARI", "RBO1110000220": "JUNI PURNAMA SARI SILABAN",
-            "RBO1110002070": "JANSEN VERNANDO SITOHANG", "RBO1310000366": "JELI NATALIAS",
-            "RBO1310000377": "DOLLY NAMORA LUBIS", "RBO1311000219": "ALPRIZA ULVI",
-            "RBO1311000661": "WANRA SITUMORANG", "RBO1311001930": "HARJA GUNADI",
-            "RBO1312000430": "PAJRI SUCI ANDRI", "RBO1312000583": "RUSTAMI",
-            "RBO1312000712": "ROMI NOVRIZON", "RBO1312001749": "CHRISTHANTY DESRIANI PURBA",
-            "RBO1312002098": "ROLY CHANDRA", "RBO1313000431": "HARRY SATRIA PUTRA",
-            "RBO1313000433": "WILLY DOZAN SAPUTRA", "RBO1313000543": "POPPY ISKANDAR",
-            "RBO1313001909": "NUR AZZURA", "RBO1314000765": "LUKMAN",
-            "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
-            "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
-            "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
-            "RBO3210001185": "ADAM RUKMANA", "RBO3210001975": "RISKA PURNAMAYANTI",
-            "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
-            "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
-            "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
-            "RBO0025001096": "MOHAMMAD ILHAMSYAH RITO", "RBO1710001857": "VICARLIAN RINJANIE",
-            "RBO0410000134": "NUR AYU MEINARSARI", "RBO1710001680": "RAWAN",
-            "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
-            "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
-            "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY"
-            // Data SLP Baru
-            "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
-            "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
-            "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
-            "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
-            "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
-            "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
-            "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
-            "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
-            "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
-            "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
-            "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
-            "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
-            "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
-            "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
-            "SLP0010002120": "TRI BUANA NUGRAHANTI"
-        };
-
-        var map = L.map('map').setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+    const rmReference = {
+        "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
+        "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
+        "RBO0025002023": "MUHAMAD MOZA KANDIRA", "RBO0110002068": "ARDINO OKAJINARTA",
+        "RBO0140001932": "MONICA ACHIR PUTRI", "RBO0310000656": "FITRA AMIRANTI",
+        "RBO0310000731": "YUNI KUSTANTI", "RBO0320001113": "MANIK LINTANG SUH MAHLIGAI",
+        "RBO0330001779": "ENDRI AGUSTIN", "RBO0330002011": "RIZQIKA ARDHANI SRI REJEKI",
+        "RBO0330002012": "MUHAMMAD ADITYA MUZAKKY", "RBO0350001670": "NOVI SETYAWATI",
+        "RBO0350001947": "RAMADITYA BAYU PAMUNGKAS", "RBO0350001954": "GIGIH MANGGALA",
+        "RBO0350002009": "KRISNA ALI PASHA PRATAMA PUTRA", "RBO0350002075": "ANTON SUSILO PRABOWO",
+        "RBO0410000579": "AKHMAD DWI PRAYUGI", "RBO0411002058": "NAUFAL FEBI MAHARDIKA",
+        "RBO0411002088": "MILA AZZAHRO AINI", "RBO0420002047": "RACHMAD MAHENDRA PUTRA",
+        "RBO0420002066": "YUSUF BACHRI", "RBO0430002046": "MEGA AYU LESTARI",
+        "RBO0430002069": "EGA AYU PRAMITASARI", "RBO1110000220": "JUNI PURNAMA SARI SILABAN",
+        "RBO1110002070": "JANSEN VERNANDO SITOHANG", "RBO1310000366": "JELI NATALIAS",
+        "RBO1310000377": "DOLLY NAMORA LUBIS", "RBO1311000219": "ALPRIZA ULVI",
+        "RBO1311000661": "WANRA SITUMORANG", "RBO1311001930": "HARJA GUNADI",
+        "RBO1312000430": "PAJRI SUCI ANDRI", "RBO1312000583": "RUSTAMI",
+        "RBO1312000712": "ROMI NOVRIZON", "RBO1312001749": "CHRISTHANTY DESRIANI PURBA",
+        "RBO1312002098": "ROLY CHANDRA", "RBO1313000431": "HARRY SATRIA PUTRA",
+        "RBO1313000433": "WILLY DOZAN SAPUTRA", "RBO1313000543": "POPPY ISKANDAR",
+        "RBO1313001909": "NUR AZZURA", "RBO1314000765": "LUKMAN",
+        "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
+        "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
+        "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
+        "RBO3210001185": "ADAM RUKMANA", "RBO3210001975": "RISKA PURNAMAYANTI",
+        "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
+        "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
+        "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
+        "RBO0025001096": "MOHAMMAD ILHAMSYAH RITO", "RBO1710001857": "VICARLIAN RINJANIE",
+        "RBO0410000134": "NUR AYU MEINARSARI", "RBO1710001680": "RAWAN",
+        "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
+        "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
+        "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY", // <- KOMA DITAMBAHKAN DISINI
         
-        let barChartInstance = null;
+        // Data SLP Baru
+        "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
+        "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
+        "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
+        "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
+        "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
+        "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
+        "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
+        "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
+        "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
+        "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
+        "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
+        "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
+        "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
+        "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
+        "SLP0010002120": "TRI BUANA NUGRAHANTI"
+    };
 
-        async function loadCSV() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            
-            let fileToTry = `data_${year}${month}.csv`;
+    var map = L.map('map').setView([-2.5489, 118.0149], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+    
+    let barChartInstance = null;
+
+    async function loadCSV() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        
+        let fileToTry = `data_${year}${month}.csv`;
+        
+        try {
             let response = await fetch(fileToTry);
-
             if (!response.ok) {
                 const lastMonth = String(now.getMonth()).padStart(2, '0'); 
                 fileToTry = `data_${year}${lastMonth}.csv`;
@@ -158,134 +160,146 @@
                 document.getElementById('file-info').innerText = "Sumber: " + fileToTry;
                 const csvString = await response.text();
                 Papa.parse(csvString, {
-                    header: true, dynamicTyping: true, skipEmptyLines: true,
+                    header: true, 
+                    dynamicTyping: true, 
+                    skipEmptyLines: true,
                     complete: function(results) {
-                        renderDashboard(results.data);
-                        document.getElementById('loading-overlay').style.display = 'none';
+                        if(results.data && results.data.length > 0) {
+                            renderDashboard(results.data);
+                        } else {
+                            document.getElementById('loading-overlay').innerText = "Data CSV kosong!";
+                        }
+                    },
+                    error: function(err) {
+                        document.getElementById('loading-overlay').innerText = "Gagal parsing CSV!";
                     }
                 });
             } else {
-                document.getElementById('loading-overlay').innerText = "Data tidak ditemukan!";
+                document.getElementById('loading-overlay').innerText = "File data tidak ditemukan di GitHub!";
             }
+        } catch (e) {
+            document.getElementById('loading-overlay').innerText = "Terjadi kesalahan koneksi!";
         }
+    }
 
-       function renderDashboard(data) {
-    let recap = {};
-    let gOS = 0, gNOA = 0;
+    function renderDashboard(data) {
+        let recap = {};
+        let gOS = 0, gNOA = 0;
 
-    data.forEach(item => {
-        let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
-        if (!rawNorek) return;
+        data.forEach(item => {
+            let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+            if (!rawNorek) return;
 
-        let norekStr = String(rawNorek).trim();
-        let code = norekStr.substring(0, 4);
+            let norekStr = String(rawNorek).trim();
+            let code = norekStr.substring(0, 4);
 
-        // Perbaikan leading zero
-        if (!geoMapping[code]) {
-            let altCode3 = "0" + norekStr.substring(0, 3);
-            let altCode2 = "00" + norekStr.substring(0, 2);
-            if (geoMapping[altCode3]) code = altCode3;
-            else if (geoMapping[altCode2]) code = altCode2;
-        }
-        if (code === "0311") code = "0310"; // Redirect Semarang
+            // Perbaikan leading zero
+            if (!geoMapping[code]) {
+                let altCode3 = "0" + norekStr.substring(0, 3);
+                let altCode2 = "00" + norekStr.substring(0, 2);
+                if (geoMapping[altCode3]) code = altCode3;
+                else if (geoMapping[altCode2]) code = altCode2;
+            }
+            
+            // Perbaikan redirect
+            if (code === "0311") code = "0310"; 
 
-        if (!geoMapping[code]) return;
-        let branchName = geoMapping[code].name;
+            if (!geoMapping[code]) return;
+            let branchName = geoMapping[code].name;
 
-        if (!recap[code]) {
-            recap[code] = { name: branchName, os: 0, noa: 0, marketings: {} };
-        }
-
-        // AMBIL NILAI OS
-        let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
-        let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
-
-        // LOGIKA NAMA MARKETING:
-        // Cek final_marketing_name, jika kosong lari ke uker_mapping, jika masih kosong lari ke branchName (Organic Cabang)
-        let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || 
-                     item.uker_mapping || item.UKER_MAPPING || branchName;
-        
-        // Translator Kode -> Nama
-        let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
-
-        // Update Data
-        recap[code].os += amt;
-        recap[code].noa += 1;
-        
-        if (!recap[code].marketings[mktName]) {
-            recap[code].marketings[mktName] = { os: 0, noa: 0 };
-        }
-        recap[code].marketings[mktName].os += amt;
-        recap[code].marketings[mktName].noa += 1;
-
-        gOS += amt; 
-        gNOA += 1;
-    });
-
-    document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
-    document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
-
-    updateMap(recap);
-    updateChart(recap, "Top 5 Cabang (OS)", true);
-}
-
-        function updateMap(recap) {
-            map.eachLayer((layer) => {
-                if (layer instanceof L.CircleMarker) map.removeLayer(layer);
-            });
-
-            Object.keys(recap).forEach(c => {
-                const geo = geoMapping[c];
-                let radius = Math.max(8, Math.min(25, recap[c].os / 100000000));
-                
-                let marker = L.circleMarker([geo.lat, geo.lng], {
-                    radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
-                }).addTo(map);
-
-                marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}<br><small><i>Klik titik untuk detail Marketing</i></small>`);
-                
-                marker.on('click', () => {
-                    updateChart(recap[c].marketings, `Marketing - ${recap[c].name}`, false);
-                });
-            });
-        }
-
-        function updateChart(sourceData, title, isBranchMode) {
-            const ctx = document.getElementById('barChart').getContext('2d');
-            if (barChartInstance) barChartInstance.destroy();
-            document.getElementById('chart-title').innerText = title;
-
-            let labels, dataValues;
-
-            if (isBranchMode) {
-                const top5 = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-                labels = top5.map(x => x[1].name);
-                dataValues = top5.map(x => x[1].os);
-            } else {
-                const topMkt = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
-                labels = topMkt.map(x => x[0]);
-                dataValues = topMkt.map(x => x[1].os);
+            if (!recap[code]) {
+                recap[code] = { name: branchName, os: 0, noa: 0, marketings: {} };
             }
 
-            barChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{ 
-                        data: dataValues, 
-                        backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
-                        borderRadius: 5 
-                    }]
-                },
-                options: { 
-                    indexAxis: 'y', maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
-                    scales: { x: { ticks: { callback: v => (v/1000000).toFixed(0) + 'jt' } } }
-                }
+            // Ambil Nilai OS
+            let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || 0;
+            let amt = typeof rawAmount === 'string' ? parseFloat(rawAmount.replace(/,/g, '')) : rawAmount;
+            if (isNaN(amt)) amt = 0;
+
+            // Logika Marketing
+            let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || 
+                         item.uker_mapping || item.UKER_MAPPING || branchName;
+            
+            let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
+
+            recap[code].os += amt;
+            recap[code].noa += 1;
+            
+            if (!recap[code].marketings[mktName]) {
+                recap[code].marketings[mktName] = { os: 0, noa: 0 };
+            }
+            recap[code].marketings[mktName].os += amt;
+            recap[code].marketings[mktName].noa += 1;
+
+            gOS += amt; 
+            gNOA += 1;
+        });
+
+        document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
+        document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
+        document.getElementById('loading-overlay').style.display = 'none';
+
+        updateMap(recap);
+        updateChart(recap, "Top 5 Cabang (OS)", true);
+    }
+
+    function updateMap(recap) {
+        map.eachLayer((layer) => {
+            if (layer instanceof L.CircleMarker) map.removeLayer(layer);
+        });
+
+        Object.keys(recap).forEach(c => {
+            const geo = geoMapping[c];
+            let radius = Math.max(8, Math.min(25, recap[c].os / 100000000));
+            
+            let marker = L.circleMarker([geo.lat, geo.lng], {
+                radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+            }).addTo(map);
+
+            marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}<br><small><i>Klik titik untuk detail Marketing</i></small>`);
+            
+            marker.on('click', () => {
+                updateChart(recap[c].marketings, `Marketing - ${recap[c].name}`, false);
             });
+        });
+    }
+
+    function updateChart(sourceData, title, isBranchMode) {
+        const ctx = document.getElementById('barChart').getContext('2d');
+        if (barChartInstance) barChartInstance.destroy();
+        document.getElementById('chart-title').innerText = title;
+
+        let labels, dataValues;
+
+        if (isBranchMode) {
+            const top5 = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
+            labels = top5.map(x => x[1].name);
+            dataValues = top5.map(x => x[1].os);
+        } else {
+            const topMkt = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
+            labels = topMkt.map(x => x[0]);
+            dataValues = topMkt.map(x => x[1].os);
         }
 
-        loadCSV();
-    </script>
+        barChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{ 
+                    data: dataValues, 
+                    backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
+                    borderRadius: 5 
+                }]
+            },
+            options: { 
+                indexAxis: 'y', maintainAspectRatio: false, 
+                plugins: { legend: { display: false } },
+                scales: { x: { ticks: { callback: v => (v/1000000).toFixed(0) + 'jt' } } }
+            }
+        });
+    }
+
+    loadCSV();
+</script>
 </body>
 </html>
