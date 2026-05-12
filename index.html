@@ -134,7 +134,7 @@
             "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
             "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
             "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
-            "RBO3210001185": "ADAM RUKMANA", "RBO3210001975": "RISKA PURNAMAYANTI",
+            "RBO3210001185": "ADAM RUKMANA", "RBO0321001975": "RISKA PURNAMAYANTI",
             "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
             "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
             "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
@@ -225,36 +225,34 @@
 
     let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
     
-    // Ambil value kolom dan bersihkan (pastikan nama kolom sesuai CSV)
-    let refCode = (item.referral_code || "").trim();
-    let rgDesc = (item.rg_desc || "").trim();
-    let mbDesc = (item.mb_desc || "").trim();
-    let rawMkt = (item.final_marketing_name || item.UKER_MAPPING || "").trim();
+    // 1. Ambil semua kemungkinan identitas, paksa jadi Huruf Besar dan hapus spasi
+    let refCode = (item.referral_code || item.REFERRAL_CODE || "").toString().trim().toUpperCase();
+    let rgDesc  = (item.rg_desc || item.RG_DESC || "").toString().trim().toUpperCase();
+    let mbDesc  = (item.mb_desc || item.MB_DESC || "").toString().trim().toUpperCase();
+    let rawMkt  = (item.final_marketing_name || item.UKER_MAPPING || "").toString().trim().toUpperCase();
 
-    // Ambil nama cabang dari geoMapping
     let branchName = geoMapping[ukerCode].name;
+    let mktName = null;
 
-    let mktName;
-    if (mktName === branchName) {
-    console.log("Data masuk Cabang:", rawMkt, refCode);
-}
+    // 2. Cek satu-satu mana yang cocok dengan rmReference
+    // Kita cek rawMkt dulu, kalau gagal cek refCode
+    if (rawMkt && rmReference[rawMkt]) {
+        mktName = rmReference[rawMkt];
+    } else if (refCode && rmReference[refCode]) {
+        mktName = rmReference[refCode];
+    }
 
-    // --- LOGIKA PRIORITAS ---
-    // 1. Cek apakah identifier ada di mapping rmReference
-    let identifier = rawMkt || refCode;
-    
-    if (identifier && rmReference[identifier]) {
-        // Kalau ketemu di mapping, pakai nama RM-nya
-        mktName = rmReference[identifier];
-    } 
-    // 2. Kalau GAK ketemu di mapping, cek apakah ini "Organic Kantor"
-    else if (!refCode && !rgDesc && !mbDesc) {
-        // Benar-benar kosong identitasnya, masuk ke Cabang
+    // 3. Verifikasi Logika Strict: 
+    // Kalau RM kedaftar, mktName sudah terisi nama RM.
+    // Kalau RM GAK kedaftar, tapi kolom identitas (refCode, rgDesc, mbDesc) ada isinya, 
+    // kita tetep lempar ke Cabang (sesuai request lo yang nggak mau "RM Lainnya").
+    if (!mktName) {
         mktName = branchName;
-    } 
-    // 3. Fallback terakhir: Jika ada isinya tapi gak kedaftar, masuk ke Cabang
-    else {
-        mktName = branchName;
+    }
+
+    // --- KHUSUS DEBUGGING (Cek di Console F12) ---
+    if (rawMkt === "RBO3210001185" || refCode === "RBO3210001185") {
+        console.log("Adam Rukmana Found! Assigned to:", mktName);
     }
 
     // Update Recap
