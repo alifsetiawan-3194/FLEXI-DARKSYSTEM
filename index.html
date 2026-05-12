@@ -177,17 +177,16 @@
         function cleanVal(v) { return v ? parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0 : 0; }
 
         function getUker(id) {
-    if(!id) return "9999"; // Beri kode dummy daripada null
-    let code = id.substring(0, 4);
-    if (!geoMapping[code]) code = "0" + id.substring(0, 3);
+    if(!id) return "9999";
+    let code = id.toString().substring(0, 4);
+    if (!geoMapping[code]) code = "0" + id.toString().substring(0, 3);
     
-    // Jika masih tidak ketemu di mapping, masukkan ke kategori "Lainnya" 
-    // agar NOA total tetap sinkron dengan jumlah row CSV
+    // Safety check: Jika uker tidak ada di geoMapping, arahkan ke 9999
     if (!geoMapping[code]) {
+        code = "9999";
         if (!geoMapping["9999"]) {
-            geoMapping["9999"] = { name: "UKER TIDAK TERDEFINISI", lat: -2.5, lng: 118.0 };
+            geoMapping["9999"] = { name: "UKER LAINNYA", lat: -2.5, lng: 118.0 };
         }
-        return "9999";
     }
     return code;
 }
@@ -223,41 +222,37 @@
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     
-    // Inisialisasi awal Uker
+    // Inisialisasi awal Uker dari mapping yang ada
     Object.keys(geoMapping).forEach(c => {
         recap[c] = { 
             name: geoMapping[c].name, 
             os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-            marketings: {}, 
-            companies: {} 
+            marketings: {}, companies: {} 
         };
     });
 
     sales.forEach(item => {
-        // Gunakan NOREK atau loan_account_id
-        let rawID = (item.loan_account_id || item.NOREK || "").toString().trim();
-        let ukerCode = getUker(rawID);
-
-        let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
-        let branchName = geoMapping[ukerCode].name;
-
-        // NORMALISASI KEY RM: Hapus spasi dan paksa Uppercase
-        let rawMkt = (item.final_marketing_name || "").toString().replace(/\s+/g, '').toUpperCase();
+        let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
         
-        let mktName;
-        // Cek di rmReference dengan key yang sudah di-trim juga
-        if (rawMkt && rmReference[rawMkt]) {
-            mktName = rmReference[rawMkt];
-        } else {
-            // Jika kode RM tidak terdaftar, kategorikan sebagai "ORGANIC [NAMA CABANG]"
-            mktName = "OFFICE " + branchName;
+        // --- SAFETY GUARD: Jika ukerCode tiba-tiba muncul di luar mapping ---
+        if (!recap[ukerCode]) {
+            recap[ukerCode] = { 
+                name: geoMapping[ukerCode] ? geoMapping[ukerCode].name : "UNKNOWN", 
+                os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+                marketings: {}, companies: {} 
+            };
         }
 
-        // Akumulasi per Uker
+        let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
+        let branchName = recap[ukerCode].name;
+
+        // Normalisasi key RM (Hapus spasi, paksa uppercase)
+        let rawMkt = (item.final_marketing_name || "").toString().trim().toUpperCase();
+        let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : "OFFICE " + branchName;
+
         recap[ukerCode].os += amt;
         recap[ukerCode].noa += 1;
 
-        // Akumulasi per Marketing (Detail)
         if (!recap[ukerCode].marketings[mktName]) {
             recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
         }
@@ -265,27 +260,34 @@
         recap[ukerCode].marketings[mktName].noa += 1;
 
         totalOS += amt;
-        totalNOA += 1; // Ini akan menghasilkan 29.640 sesuai row CSV
+        totalNOA += 1;
     });
 
-    // ... (Logika Risk tetap sama) ...
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK || "");
+        
+        // Safety check agar tidak error 'os' of undefined
+        if (!recap[code]) return; 
+
         let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
         let dpd = parseInt(item.dpd || 0);
         let comp = (item.company || "ORGANIC").toUpperCase();
         
-        if(recap[code]) {
-            recap[code].tunggakan += tung;
-            recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-            if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-            recap[code].companies[comp].tunggakan += tung;
-            recap[code].companies[comp].noaRisk += 1;
+        recap[code].tunggakan += tung;
+        recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+        
+        if (!recap[code].companies[comp]) {
+            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
         }
+        recap[code].companies[comp].tunggakan += tung;
+        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+        recap[code].companies[comp].noaRisk += 1;
         totalRisk += tung;
     });
 
     globalRecap = recap;
+    
+    // Update UI
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
     document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
