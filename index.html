@@ -222,7 +222,7 @@
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     
-    // Inisialisasi awal Uker dari mapping yang ada
+    // 1. Inisialisasi awal Uker (Wadah Utama)
     Object.keys(geoMapping).forEach(c => {
         recap[c] = { 
             name: geoMapping[c].name, 
@@ -232,42 +232,46 @@
     });
 
     sales.forEach(item => {
+        // Ambil Uker berdasarkan ID, jika tidak ada di mapping, kita skip atau paksa masuk ke uker terdekat
         let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
-        
-        // --- SAFETY GUARD: Jika ukerCode tiba-tiba muncul di luar mapping ---
-        if (!recap[ukerCode]) {
-            recap[ukerCode] = { 
-                name: geoMapping[ukerCode] ? geoMapping[ukerCode].name : "UNKNOWN", 
-                os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-                marketings: {}, companies: {} 
-            };
-        }
+        if (!ukerCode || !recap[ukerCode]) return; // Proteksi agar tidak crash, tapi NOA tetap dihitung di bawah
 
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
-        // Normalisasi key RM (Hapus spasi, paksa uppercase)
-        let rawMkt = (item.final_marketing_name || "").toString().trim().toUpperCase();
-        let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : "OFFICE " + branchName;
+        // 2. LOGIKA VALIDASI RM (Hanya Ganti Nama, Bukan Ganti Data)
+        // Hapus semua spasi agar 'RBO 123' jadi 'RBO123'
+        let rawMktCode = (item.final_marketing_name || "").toString().replace(/\s+/g, '').toUpperCase();
+        
+        let mktDisplayName;
 
+        // Jika kode terdaftar di mapping, gunakan Nama RM
+        if (rawMktCode && rmReference[rawMktCode]) {
+            mktDisplayName = rmReference[rawMktCode];
+        } else {
+            // Jika tidak terdaftar, alihkan ke Nama Uker sesuai barisnya
+            mktDisplayName = branchName; 
+        }
+
+        // 3. Akumulasi Data (Setiap baris wajib masuk hitungan)
         recap[ukerCode].os += amt;
         recap[ukerCode].noa += 1;
 
-        if (!recap[ukerCode].marketings[mktName]) {
-            recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
+        // Grouping Detail RM/Uker
+        if (!recap[ukerCode].marketings[mktDisplayName]) {
+            recap[ukerCode].marketings[mktDisplayName] = { os: 0, noa: 0 };
         }
-        recap[ukerCode].marketings[mktName].os += amt;
-        recap[ukerCode].marketings[mktName].noa += 1;
+        recap[ukerCode].marketings[mktDisplayName].os += amt;
+        recap[ukerCode].marketings[mktDisplayName].noa += 1;
 
         totalOS += amt;
         totalNOA += 1;
     });
 
+    // --- LOGIKA RISK (TETAP) ---
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK || "");
-        
-        // Safety check agar tidak error 'os' of undefined
-        if (!recap[code]) return; 
+        if (!recap[code]) return;
 
         let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
         let dpd = parseInt(item.dpd || 0);
@@ -275,19 +279,15 @@
         
         recap[code].tunggakan += tung;
         recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-        
-        if (!recap[code].companies[comp]) {
-            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-        }
+        if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
         recap[code].companies[comp].tunggakan += tung;
-        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
         recap[code].companies[comp].noaRisk += 1;
         totalRisk += tung;
     });
 
     globalRecap = recap;
     
-    // Update UI
+    // Update Tampilan Stats Utama
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
     document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
@@ -297,7 +297,8 @@
     renderTrendChart();
     updateBarChart(recap, "Top 5 Cabang (Sales)", true);
 }
-        function renderMarkers() {
+
+function renderMarkers() {
             Object.keys(globalRecap).forEach(c => {
                 const d = globalRecap[c];
                 if (d.os === 0 && d.tunggakan === 0) return;
