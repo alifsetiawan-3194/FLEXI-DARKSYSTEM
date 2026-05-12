@@ -36,7 +36,9 @@
         .company-item { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
         .company-header { display: flex; justify-content: space-between; align-items: center; }
         .company-name { font-weight: bold; font-size: 11px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
-        .risk-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; color: white; font-weight: bold; }
+        
+        /* Badge Risk Styling - Diperbaiki agar teks hitam & kontras */
+        .risk-badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; color: #1a1a1a; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -51,7 +53,7 @@
     <div class="sidebar">
         <div style="display:flex; justify-content:space-between; gap:10px;">
             <div class="stat-card" style="flex:1;">
-                <small>TOTAL OS BULAN INI</small>
+                <small>TOTAL OS SALES</small>
                 <div id="total-os">Rp 0</div>
             </div>
             <div class="stat-card" style="border-left-color: #27ae60; flex:1;">
@@ -61,7 +63,7 @@
         </div>
         
         <div class="stat-card" style="border-left-color: #e53e3e;">
-            <small>TOTAL TUNGGAKAN (NPL/RISK)</small>
+            <small>TOTAL TUNGGAKAN (RISK)</small>
             <div id="total-risk">Rp 0</div>
         </div>
         
@@ -83,6 +85,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
+        // --- DATA MAPPING CABANG ---
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
             "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
@@ -109,6 +112,7 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
+        // --- DATA MAPPING RM ---
         const rmReference = {
             "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
             "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
@@ -166,6 +170,15 @@
         let barChartInstance = null;
         let globalRecap = {};
 
+        // --- FUNGSI FORMAT RUPIAH CERDAS ---
+        function formatRupiah(val) {
+            if (val === 0) return "Rp 0";
+            if (val >= 1e12) return "Rp " + (val / 1e12).toFixed(2) + " T";
+            if (val >= 1e9) return "Rp " + (val / 1e9).toFixed(2) + " M";
+            if (val >= 1e6) return "Rp " + (val / 1e6).toFixed(1) + " jt";
+            return "Rp " + val.toLocaleString('id-ID');
+        }
+
         function cleanVal(v) {
             if (!v) return 0;
             return parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0;
@@ -201,7 +214,7 @@
                     fetch(fileRisk).catch(() => null)
                 ]);
 
-                if (!resSales.ok) throw new Error("File Sales tidak ditemukan");
+                if (!resSales || !resSales.ok) throw new Error("File Sales (Pencairan) tidak ditemukan");
                 
                 const salesText = await resSales.text();
                 const riskText = resRisk && resRisk.ok ? await resRisk.text() : "";
@@ -219,72 +232,59 @@
             let recap = {};
             let totalOS = 0, totalNOA = 0, totalRisk = 0;
 
-            // Inisialisasi Recap
             Object.keys(geoMapping).forEach(c => {
                 recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
             });
 
-            // 1. Proses Data Sales (Pencairan)
             sales.forEach(item => {
                 let code = getUker(item.loan_account_id || item.NOREK || "");
                 if (!code) return;
-
                 let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
                 let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
 
                 recap[code].os += amt;
                 recap[code].noa += 1;
-                
-                // Simpan detail OS dan NOA per RM
-                if (!recap[code].marketings[mktName]) {
-                    recap[code].marketings[mktName] = { os: 0, noa: 0 };
-                }
+                if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
                 recap[code].marketings[mktName].os += amt;
                 recap[code].marketings[mktName].noa += 1;
-
                 totalOS += amt;
                 totalNOA += 1;
             });
 
-            // 2. Proses Data Risk (Tunggakan)
             risk.forEach(item => {
                 let code = getUker(item.loan_account_id || item.NOREK || "");
                 if (!code) return;
-
-                let tung = cleanVal(item.total_tunggakan || 0);
+                let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
                 let dpd = parseInt(item.dpd || 0);
                 let comp = standardizeCompanyName(item.company || "ORGANIC");
 
                 recap[code].tunggakan += tung;
                 recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-
-                if (!recap[code].companies[comp]) {
-                    recap[code].companies[comp] = { tunggakan: 0, dpd: 0 };
-                }
+                if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
                 recap[code].companies[comp].tunggakan += tung;
                 recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-                
+                recap[code].companies[comp].noaRisk += 1;
                 totalRisk += tung;
             });
 
             globalRecap = recap;
-            document.getElementById('total-os').innerText = "Rp " + (totalOS/1e9).toFixed(2) + " M";
+            document.getElementById('total-os').innerText = formatRupiah(totalOS);
             document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
-            document.getElementById('total-risk').innerText = "Rp " + (totalRisk/1e6).toFixed(1) + " jt";
+            document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
             document.getElementById('loading-overlay').style.display = 'none';
 
             renderMarkers();
-            updateChart(recap, "Top 10 Cabang (Sales)", true);
+            updateChart(recap, "Top 5 Cabang (Sales)", true);
         }
 
         function renderMarkers() {
+            map.eachLayer((layer) => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
             Object.keys(globalRecap).forEach(c => {
                 const d = globalRecap[c];
                 const geo = geoMapping[c];
                 if (d.os === 0 && d.tunggakan === 0) return;
 
-                // Hijau = Lancar, Kuning = DPD 1-90, Merah = NPL > 90
                 let color = d.maxDpd > 90 ? "#e53e3e" : (d.maxDpd > 0 ? "#f6e05e" : "#27ae60");
                 let radius = Math.max(8, Math.min(25, d.os / 250000000));
 
@@ -292,7 +292,17 @@
                     radius: radius, fillColor: color, color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
 
-                marker.bindPopup(`<b>${d.name}</b><hr>Sales: Rp ${(d.os/1e6).toFixed(1)} jt<br>NOA: ${d.noa}<br>Tunggakan: Rp ${(d.tunggakan/1e6).toFixed(1)} jt`);
+                marker.bindPopup(`
+                    <div style="font-family: 'Roboto', sans-serif; min-width:150px;">
+                        <b style="font-size:14px; color:#00529c;">${d.name}</b><hr style="margin:5px 0;">
+                        <table style="width:100%; font-size:12px;">
+                            <tr><td>Sales</td><td>: <b>${formatRupiah(d.os)}</b></td></tr>
+                            <tr><td>NOA</td><td>: <b>${d.noa}</b></td></tr>
+                            <tr><td>Risk</td><td>: <b style="color:#e53e3e;">${formatRupiah(d.tunggakan)}</b></td></tr>
+                        </table>
+                    </div>
+                `);
+                
                 marker.on('click', () => {
                     updateChart(d.marketings, `Top RM - ${d.name}`, false);
                     updateCompanyRisk(d.companies);
@@ -305,10 +315,7 @@
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
 
-            // Logika baru untuk handle data RM yang ada OS & NOA
-            let labels = [];
-            let osValues = [];
-            let noaValues = [];
+            let labels = [], osValues = [], noaValues = [];
 
             if (isBranch) {
                 let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
@@ -326,12 +333,7 @@
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{ 
-                        data: osValues, 
-                        backgroundColor: '#00529c', 
-                        borderRadius: 5,
-                        noa: noaValues // Simpan NOA di sini untuk tooltip
-                    }]
+                    datasets: [{ data: osValues, backgroundColor: '#00529c', borderRadius: 5, noa: noaValues }]
                 },
                 options: { 
                     indexAxis: 'y', maintainAspectRatio: false, 
@@ -342,15 +344,12 @@
                                 label: function(context) {
                                     let val = context.parsed.x;
                                     let noa = context.dataset.noa[context.dataIndex];
-                                    return `OS: Rp ${(val/1e6).toFixed(1)}jt | NOA: ${noa}`;
+                                    return ` OS: ${formatRupiah(val)} | NOA: ${noa}`;
                                 }
                             }
                         }
                     },
-                    scales: { 
-                        x: { display: false }, 
-                        y: { ticks: { font: { size: 9 } } } 
-                    }
+                    scales: { x: { display: false }, y: { ticks: { font: { size: 9 } } } }
                 }
             });
         }
@@ -360,18 +359,22 @@
             const list = document.getElementById('company-list');
             container.style.display = 'block';
 
-            const sorted = Object.entries(companies)
-                .sort((a,b) => b[1].tunggakan - a[1].tunggakan)
-                .slice(0, 10);
+            const sorted = Object.entries(companies).sort((a,b) => b[1].tunggakan - a[1].tunggakan).slice(0, 10);
 
-            list.innerHTML = sorted.length ? sorted.map((s, i) => `
+            list.innerHTML = sorted.length ? sorted.map((s, i) => {
+                let color = s[1].dpd > 90 ? '#feb2b2' : (s[1].dpd > 0 ? '#faf089' : '#9ae6b4');
+                return `
                 <div class="company-item">
                     <div class="company-header">
                         <div class="company-name">${i+1}. ${s[0]}</div>
-                        <div class="risk-badge" style="background:${s[1].dpd > 90 ? '#e53e3e' : (s[1].dpd > 0 ? '#f6e05e' : '#27ae60')}">${s[1].dpd} DPD</div>
+                        <div class="risk-badge" style="background:${color}">${s[1].dpd} DPD</div>
                     </div>
-                    <div style="font-size:10px; color:#666;">Tunggakan: Rp ${s[1].tunggakan.toLocaleString('id-ID')}</div>
-                </div>`).join('') : "<p style='font-size:11px;'>Tidak ada data risk.</p>";
+                    <div style="display:flex; justify-content:space-between; font-size:10px; color:#666; margin-top:3px;">
+                        <span>Tunggakan: <b>${formatRupiah(s[1].tunggakan)}</b></span>
+                        <span style="color:#00529c;">${s[1].noaRisk} NOA Macet</span>
+                    </div>
+                </div>`;
+            }).join('') : "<p style='font-size:11px;'>Tidak ada data risk (Semua Lancar).</p>";
         }
 
         initDashboard();
