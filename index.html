@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Pencairan Selindo</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Roboto', sans-serif; background: #f4f7f6; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        .header-title {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 10px 25px; border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 1000; font-weight: bold;
+        }
+
+        .sidebar {
+            position: absolute; top: 80px; right: 20px; width: 320px;
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 80vh; overflow-y: auto;
+        }
+
+        .chart-container { height: 250px; margin-top: 15px; }
+        .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00529c; }
+        .stat-card small { color: #666; font-size: 11px; }
+        .stat-card div { font-weight: bold; font-size: 16px; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div class="header-title">MONITORING PROGRESS PENCAIRAN 2026</div>
+
+    <div class="sidebar">
+        <div class="stat-card">
+            <small>TOTAL PENCAIRAN (OS)</small>
+            <div id="total-os">Rp 0</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #27ae60;">
+            <small>TOTAL NOA</small>
+            <div id="total-noa">0</div>
+        </div>
+        
+        <hr>
+        <h4 style="font-size: 13px; margin: 15px 0 5px;">Top 5 Cabang (OS)</h4>
+        <div class="chart-container">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // 1. DATABASE KOORDINAT CABANG (Mapping Internal Lo)
+        const geoMapping = {
+            "0010": { name: "CB MENARA BRILIAN", lat: -6.2201, lng: 106.8185 },
+            "0020": { name: "WARUNG JATI", lat: -6.2735, lng: 106.8291 },
+            "0025": { name: "BEKASI", lat: -6.2383, lng: 106.9756 },
+            "0110": { name: "BANDUNG", lat: -6.9175, lng: 107.6191 },
+            "0140": { name: "CB CIREBON", lat: -6.7320, lng: 108.5523 },
+            "0310": { name: "SEMARANG", lat: -6.9667, lng: 110.4167 },
+            "0320": { name: "SOLO", lat: -7.5661, lng: 110.8243 },
+            "0330": { name: "CB TEMANGGUNG", lat: -7.3167, lng: 110.1667 },
+            "0350": { name: "CB YOGYAKARTA", lat: -7.7956, lng: 110.3695 },
+            "0410": { name: "SURABAYA", lat: -7.2575, lng: 112.7521 },
+            "0411": { name: "SIDOARJO", lat: -7.4478, lng: 112.7183 },
+            "0420": { name: "CB MALANG", lat: -7.9839, lng: 112.6214 },
+            "0430": { name: "CB LAMONGAN", lat: -7.1192, lng: 112.4153 },
+            "1110": { name: "MEDAN", lat: 3.5952, lng: 98.6722 },
+            "1310": { name: "PEKANBARU", lat: 0.5071, lng: 101.4478 },
+            "1312": { name: "LUBUK DALAM", lat: 0.6125, lng: 101.8152 },
+            "1313": { name: "UJUNG BATU", lat: 0.7042, lng: 100.5408 },
+            "1314": { name: "AIR MOLEK", lat: -0.4578, lng: 102.2858 },
+            "1315": { name: "KK DALU DALU", lat: 1.1333, lng: 100.4667 },
+            "1520": { name: "CB PALEMBANG", lat: -2.9761, lng: 104.7754 },
+            "1710": { name: "LAMPUNG", lat: -5.3971, lng: 105.2668 },
+            "3210": { name: "MAKASSAR", lat: -5.1476, lng: 119.4327 },
+            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
+        };
+
+        // 2. DATA MENTAH (Nanti lo bisa fetch dari Spreadsheet/CSV)
+        // Format: [loan_account_id, status, amount, uker_code]
+        const rawData = [
+            { id: "001", status: "LOAN_CREATED", amount: 50000000, uker: "3210" },
+            { id: "002", status: "LOAN_CREATED", amount: 25000000, uker: "0110" },
+            { id: "003", status: "LOAN_CREATED", amount: 100000000, uker: "3210" },
+            { id: "004", status: "LOAN_CREATED", amount: 75000000, uker: "0410" },
+            { id: "005", status: "LOAN_CREATED", amount: 30000000, uker: "1110" },
+            { id: "006", status: "LOAN_CREATED", amount: 90000000, uker: "1310" },
+        ];
+
+        // 3. SETUP PETA
+        var map = L.map('map').setView([-2.5489, 118.0149], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        // 4. LOGIKA AGREGASI DATA
+        const processData = () => {
+            let recap = {};
+            let grandTotalOS = 0;
+            let grandTotalNOA = 0;
+
+            rawData.forEach(item => {
+                if (!recap[item.uker]) recap[item.uker] = { os: 0, noa: 0 };
+                recap[item.uker].os += item.amount;
+                recap[item.uker].noa += 1;
+                grandTotalOS += item.amount;
+                grandTotalNOA += 1;
+            });
+
+            // Update Header Sidebar
+            document.getElementById('total-os').innerText = "Rp " + grandTotalOS.toLocaleString('id-ID');
+            document.getElementById('total-noa').innerText = grandTotalNOA.toLocaleString('id-ID');
+
+            // Gambar di Peta
+            Object.keys(recap).forEach(ukerCode => {
+                const geo = geoMapping[ukerCode];
+                if (geo) {
+                    const data = recap[ukerCode];
+                    L.circleMarker([geo.lat, geo.lng], {
+                        radius: Math.max(8, data.os / 10000000), // Ukuran bubble dinamis
+                        fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+                    }).addTo(map)
+                    .bindPopup(`<b>${geo.name}</b><br>OS: Rp ${data.os.toLocaleString()}<br>NOA: ${data.noa}`);
+                }
+            });
+
+            return recap;
+        };
+
+        const recapData = processData();
+
+        // 5. SETUP CHART
+        const top5 = Object.entries(recapData)
+            .sort((a,b) => b[1].os - a[1].os)
+            .slice(0, 5);
+
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: top5.map(x => geoMapping[x[0]].name),
+                datasets: [{
+                    label: 'OS',
+                    data: top5.map(x => x[1].os),
+                    backgroundColor: '#00529c',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+    </script>
+</body>
+</html>
