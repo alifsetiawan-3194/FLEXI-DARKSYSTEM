@@ -80,7 +80,7 @@
             "1520": { name: "CB PALEMBANG", lat: -2.9761, lng: 104.7754 },
             "1710": { name: "CB LAMPUNG", lat: -5.3971, lng: 105.2668 },
             "3210": { name: "CB MAKASSAR", lat: -5.1476, lng: 119.4327 },
-            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
+            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 },
         };
 
         const rmReference = {
@@ -117,6 +117,22 @@
             "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
             "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
             "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY"
+            // Data SLP Baru
+            "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
+            "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
+            "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
+            "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
+            "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
+            "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
+            "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
+            "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
+            "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
+            "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
+            "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
+            "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
+            "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
+            "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
+            "SLP0010002120": "TRI BUANA NUGRAHANTI"
         };
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
@@ -153,63 +169,65 @@
             }
         }
 
-        function renderDashboard(data) {
-            let recap = {};
-            let gOS = 0, gNOA = 0;
+       function renderDashboard(data) {
+    let recap = {};
+    let gOS = 0, gNOA = 0;
 
-            data.forEach(item => {
-                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
-                if (!rawNorek) return;
+    data.forEach(item => {
+        let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+        if (!rawNorek) return;
 
-                let norekStr = String(rawNorek).trim();
-                let code = norekStr.substring(0, 4);
+        let norekStr = String(rawNorek).trim();
+        let code = norekStr.substring(0, 4);
 
-                // 1. Logika Perbaikan Kode
-                if (!geoMapping[code]) {
-                    let altCode3 = "0" + norekStr.substring(0, 3);
-                    let altCode2 = "00" + norekStr.substring(0, 2);
-                    if (geoMapping[altCode3]) code = altCode3;
-                    else if (geoMapping[altCode2]) code = altCode2;
-                }
-
-                // 2. REDIRECT: Banyumanik (0311) ke Semarang (0310)
-                if (code === "1311") code = "0310";
-
-                if (!geoMapping[code]) return;
-                
-                // 3. Inisialisasi Recap & Marketings
-                if (!recap[code]) {
-                    recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {} };
-                }
-                
-                // 4. Hitung Nilai
-                let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
-                let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
-                
-                // 5. Mapping Marketing (TIERING & TRANSLATOR)
-                let rawMkt = item.final_marketing_name || "Tanpa Nama";
-                let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
-
-                // Update Data
-                recap[code].os += amt;
-                recap[code].noa += 1;
-                
-                if (!recap[code].marketings[mktName]) {
-                    recap[code].marketings[mktName] = { os: 0, noa: 0 };
-                }
-                recap[code].marketings[mktName].os += amt;
-                recap[code].marketings[mktName].noa += 1;
-
-                gOS += amt; 
-                gNOA += 1;
-            });
-
-            document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
-            document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
-
-            updateMap(recap);
-            updateChart(recap, "Top 5 Cabang (OS)", true);
+        // Perbaikan leading zero
+        if (!geoMapping[code]) {
+            let altCode3 = "0" + norekStr.substring(0, 3);
+            let altCode2 = "00" + norekStr.substring(0, 2);
+            if (geoMapping[altCode3]) code = altCode3;
+            else if (geoMapping[altCode2]) code = altCode2;
         }
+        if (code === "0311") code = "0310"; // Redirect Semarang
+
+        if (!geoMapping[code]) return;
+        let branchName = geoMapping[code].name;
+
+        if (!recap[code]) {
+            recap[code] = { name: branchName, os: 0, noa: 0, marketings: {} };
+        }
+
+        // AMBIL NILAI OS
+        let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
+        let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
+
+        // LOGIKA NAMA MARKETING:
+        // Cek final_marketing_name, jika kosong lari ke uker_mapping, jika masih kosong lari ke branchName (Organic Cabang)
+        let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || 
+                     item.uker_mapping || item.UKER_MAPPING || branchName;
+        
+        // Translator Kode -> Nama
+        let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
+
+        // Update Data
+        recap[code].os += amt;
+        recap[code].noa += 1;
+        
+        if (!recap[code].marketings[mktName]) {
+            recap[code].marketings[mktName] = { os: 0, noa: 0 };
+        }
+        recap[code].marketings[mktName].os += amt;
+        recap[code].marketings[mktName].noa += 1;
+
+        gOS += amt; 
+        gNOA += 1;
+    });
+
+    document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
+    document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
+
+    updateMap(recap);
+    updateChart(recap, "Top 5 Cabang (OS)", true);
+}
 
         function updateMap(recap) {
             map.eachLayer((layer) => {
