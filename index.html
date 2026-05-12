@@ -85,9 +85,19 @@
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
         async function loadCSV() {
-            try {
-                const response = await fetch('data.csv'); // Membaca file data.csv di repo
-                const csvString = await response.text();
+    try {
+        // Logika otomatis ambil file berdasarkan tahun dan bulan sekarang
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0'); // +1 karena bulan mulai dari 0
+        const fileName = `data_${year}${month}.csv`; 
+        
+        console.log("Mencoba memuat file:", fileName);
+        
+        const response = await fetch(fileName);
+        if (!response.ok) throw new Error("File bulan ini belum diupload");
+        
+        const csvString = await response.text();
                 
                 Papa.parse(csvString, {
                     header: true,
