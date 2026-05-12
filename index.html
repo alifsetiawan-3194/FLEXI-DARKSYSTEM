@@ -85,27 +85,19 @@
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
         
-        let barChartInstance = null; // Biar chart bisa di-reset
+        let barChartInstance = null;
 
         async function loadCSV() {
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             
-            // Coba file bulan ini dulu, kalau gagal coba bulan lalu
             let fileToTry = `data_${year}${month}.csv`;
             let response = await fetch(fileToTry);
 
             if (!response.ok) {
-                console.log(fileToTry + " tidak ketemu, mencoba bulan lalu...");
                 const lastMonth = String(now.getMonth()).padStart(2, '0'); 
                 fileToTry = `data_${year}${lastMonth}.csv`;
-                response = await fetch(fileToTry);
-            }
-
-            if (!response.ok) {
-                // Jika masih gagal, coba data.csv (default)
-                fileToTry = 'data.csv';
                 response = await fetch(fileToTry);
             }
 
@@ -122,80 +114,84 @@
                     }
                 });
             } else {
-                document.getElementById('loading-overlay').innerText = "Data tidak ditemukan! (data_YYYYMM.csv)";
+                document.getElementById('loading-overlay').innerText = "Data tidak ditemukan!";
             }
         }
 
-function renderDashboard(data) {
-    let recap = {};
-    let gOS = 0, gNOA = 0;
+        function renderDashboard(data) {
+            let recap = {};
+            let gOS = 0, gNOA = 0;
 
-    data.forEach(item => {
-    // Ambil norek, pastikan jadi string
-    let norek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
-    if (!norek) return;
+            data.forEach(item => {
+                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+                if (!rawNorek) return;
 
-    // Ambil 4 digit awal. 
-    // Jika angka nol didepan hilang (misal jadi 310), kita tambahin lagi biar jadi 0310
-    let code = String(norek).substring(0, 4);
-    if (code.length === 3) code = "0" + code; 
-    
-    // Jika masih gagal (misal kodenya geser), coba ambil dari uker_code jika ada
-    if (!geoMapping[code]) {
-        let altCode = String(item.uker_code || "").padStart(4, '0');
-        if (geoMapping[altCode]) code = altCode;
-    }
+                let norekStr = String(rawNorek).trim();
+                let code = norekStr.substring(0, 4);
 
-    // Jika kode tetap tidak ada di mapping, abaikan baris ini
-    if (!geoMapping[code]) {
-        console.log("Kode tidak terdaftar di mapping:", code);
-        return;
-    }
-    
-    if (!recap[code]) recap[code] = { os: 0, noa: 0 };
-    
-    // Bersihkan angka dari koma dan spasi
-    let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
-    let cleanAmount = String(rawAmount).replace(/,/g, '').trim(); 
-    let amt = parseFloat(cleanAmount) || 0;
-    
-    recap[code].os += amt;
-    recap[code].noa += 1;
-    gOS += amt; 
-    gNOA += 1;
-});
+                // LOGIKA KRUSIAL: Jika kode 4 digit tidak terdaftar, coba tambahkan '0' di depan 3 digit awal
+                if (!geoMapping[code]) {
+                    let altCode = "0" + norekStr.substring(0, 3);
+                    if (geoMapping[altCode]) {
+                        code = altCode;
+                    } else {
+                        // Coba lagi pake uker_code kalo ada
+                        let ukerCol = String(item.uker_code || "").padStart(4, '0');
+                        if (geoMapping[ukerCol]) code = ukerCol;
+                    }
+                }
 
-    // Update Angka di Sidebar
-    document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
-    document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
+                if (!geoMapping[code]) {
+                    console.log("Mapping skip:", code);
+                    return;
+                }
+                
+                if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+                
+                let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
+                let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
+                
+                recap[code].os += amt;
+                recap[code].noa += 1;
+                gOS += amt; 
+                gNOA += 1;
+            });
 
-    // Hapus marker lama
-    map.eachLayer((layer) => {
-        if (layer instanceof L.CircleMarker) map.removeLayer(layer);
-    });
+            document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
+            document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
 
-    // Gambar ulang titik di peta
-    Object.keys(recap).forEach(c => {
-        const geo = geoMapping[c];
-        L.circleMarker([geo.lat, geo.lng], {
-            radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
-            fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
-        }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
-    });
+            map.eachLayer((layer) => {
+                if (layer instanceof L.CircleMarker) map.removeLayer(layer);
+            });
 
-    // Update Chart
-    const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-    const ctx = document.getElementById('barChart').getContext('2d');
-    if (barChartInstance) barChartInstance.destroy();
-    barChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: top5.map(x => geoMapping[x[0]].name),
-            datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c', borderRadius: 5 }]
-        },
-        options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-}
+            Object.keys(recap).forEach(c => {
+                const geo = geoMapping[c];
+                // Ukuran bubble disesuaikan (OS dibagi 100jt)
+                let radius = Math.max(8, Math.min(25, recap[c].os / 100000000));
+                
+                L.circleMarker([geo.lat, geo.lng], {
+                    radius: radius,
+                    fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+                }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
+            });
+
+            const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top5.map(x => geoMapping[x[0]].name),
+                    datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c', borderRadius: 5 }]
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { callback: v => (v/1000000) + 'jt' } } }
+                }
+            });
+        }
 
         loadCSV();
     </script>
