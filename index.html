@@ -220,54 +220,69 @@
             });
 
             sales.forEach(item => {
-    let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
-    if (!ukerCode) return;
+                let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
+                if (!ukerCode) return;
 
-    let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
-    
-    // 1. Ambil semua kemungkinan identitas, paksa jadi Huruf Besar dan hapus spasi
-    let refCode = (item.referral_code || item.REFERRAL_CODE || "").toString().trim().toUpperCase();
-    let rgDesc  = (item.rg_desc || item.RG_DESC || "").toString().trim().toUpperCase();
-    let mbDesc  = (item.mb_desc || item.MB_DESC || "").toString().trim().toUpperCase();
-    let rawMkt  = (item.final_marketing_name || item.UKER_MAPPING || "").toString().trim().toUpperCase();
+                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
+                
+                // 1. Ambil data mentah dari kolom final_marketing_name
+                let rawMkt = (item.final_marketing_name || item.UKER_MAPPING || "").toString().trim().toUpperCase();
+                
+                // 2. Ambil data pendukung (tiga kolom sakti) untuk validasi tambahan jika perlu
+                let refCode = (item.referral_code || "").toString().trim().toUpperCase();
+                let rgDesc  = (item.rg_desc || "").toString().trim().toUpperCase();
+                let mbDesc  = (item.mb_desc || "").toString().trim().toUpperCase();
 
-    let branchName = geoMapping[ukerCode].name;
-    let mktName = null;
+                let branchName = geoMapping[ukerCode].name;
+                let mktName = null;
 
-    // 2. Cek satu-satu mana yang cocok dengan rmReference
-    // Kita cek rawMkt dulu, kalau gagal cek refCode
-    if (rawMkt && rmReference[rawMkt]) {
-        mktName = rmReference[rawMkt];
-    } else if (refCode && rmReference[refCode]) {
-        mktName = rmReference[refCode];
-    }
+                // --- LOGIKA UTAMA (FOKUS FINAL_MARKETING_NAME) ---
+                
+                // Cek apakah kolom final_marketing_name diawali RBO atau SLP
+                if (rawMkt.startsWith("RBO") || rawMkt.startsWith("SLP")) {
+                    // Jika formatnya valid (RBO/SLP), cek ke mapping RM
+                    if (rmReference[rawMkt]) {
+                        mktName = rmReference[rawMkt];
+                    } else {
+                        // Jika dia RBO/SLP tapi belum ada di mapping, 
+                        // sesuai request lo: masukin ke Cabang (bukan RM Lainnya)
+                        mktName = branchName;
+                    }
+                } 
+                // Jika kolom final_marketing_name isinya random/angka/null/kosong
+                else {
+                    // Cek cadangan di referral_code, siapa tahu kodenya malah nyelip di sana
+                    if (refCode.startsWith("RBO") || refCode.startsWith("SLP")) {
+                        if (rmReference[refCode]) {
+                            mktName = rmReference[refCode];
+                        } else {
+                            mktName = branchName;
+                        }
+                    } else {
+                        // Fix masuk ke Cabang jika identitas RM benar-benar tidak valid
+                        mktName = branchName;
+                    }
+                }
 
-    // 3. Verifikasi Logika Strict: 
-    // Kalau RM kedaftar, mktName sudah terisi nama RM.
-    // Kalau RM GAK kedaftar, tapi kolom identitas (refCode, rgDesc, mbDesc) ada isinya, 
-    // kita tetep lempar ke Cabang (sesuai request lo yang nggak mau "RM Lainnya").
-    if (!mktName) {
-        mktName = branchName;
-    }
+                // --- VALIDASI TERAKHIR: 3 KOLOM KOSONG ---
+                // Jika kolom pendukung kosong semua, pastikan dia lari ke Cabang
+                if (!refCode && !rgDesc && !mbDesc && mktName !== rmReference[rawMkt]) {
+                    mktName = branchName;
+                }
 
-    // --- KHUSUS DEBUGGING (Cek di Console F12) ---
-    if (rawMkt === "RBO3210001185" || refCode === "RBO3210001185") {
-        console.log("Adam Rukmana Found! Assigned to:", mktName);
-    }
+                // --- Update Recap Dashboard ---
+                recap[ukerCode].os += amt;
+                recap[ukerCode].noa += 1;
 
-    // Update Recap
-    recap[ukerCode].os += amt;
-    recap[ukerCode].noa += 1;
+                if (!recap[ukerCode].marketings[mktName]) {
+                    recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
+                }
+                recap[ukerCode].marketings[mktName].os += amt;
+                recap[ukerCode].marketings[mktName].noa += 1;
 
-    if (!recap[ukerCode].marketings[mktName]) {
-        recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
-    }
-    recap[ukerCode].marketings[mktName].os += amt;
-    recap[ukerCode].marketings[mktName].noa += 1;
-
-    totalOS += amt;
-    totalNOA += 1;
-});
+                totalOS += amt;
+                totalNOA += 1;
+            });
             // ... (sisa logika risk tetap sama)
             risk.forEach(item => {
                 let code = getUker(item.loan_account_id || item.NOREK || "");
