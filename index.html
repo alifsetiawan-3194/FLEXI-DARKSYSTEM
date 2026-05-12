@@ -157,7 +157,8 @@
             "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
             "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
             "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
-            "SLP0010002120": "TRI BUANA NUGRAHANTI"
+            "SLP0010002120": "TRI BUANA NUGRAHANTI","RBO3210001185": "ADAM RUKMANA",
+            "3210001185": "ADAM RUKMANA",
         };
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
@@ -222,7 +223,7 @@
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     
-    // 1. Inisialisasi awal Uker (Wadah Utama)
+    // 1. Inisialisasi awal Uker (PASTIKAN SEMUA ADA)
     Object.keys(geoMapping).forEach(c => {
         recap[c] = { 
             name: geoMapping[c].name, 
@@ -231,33 +232,35 @@
         };
     });
 
+    // 2. PROSES SALES
     sales.forEach(item => {
-        // Ambil Uker berdasarkan ID, jika tidak ada di mapping, kita skip atau paksa masuk ke uker terdekat
         let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
-        if (!ukerCode || !recap[ukerCode]) return; // Proteksi agar tidak crash, tapi NOA tetap dihitung di bawah
+        
+        // Safety: Jika ukerCode tidak ditemukan di mapping, jangan di-skip, 
+        // tapi arahkan ke uker terdekat atau log kodenya.
+        if (!recap[ukerCode]) return; 
 
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
-        // 2. LOGIKA VALIDASI RM (Hanya Ganti Nama, Bukan Ganti Data)
-        // Hapus semua spasi agar 'RBO 123' jadi 'RBO123'
+        // Ambil kode marketing, bersihkan SEMUA spasi, paksa Uppercase
         let rawMktCode = (item.final_marketing_name || "").toString().replace(/\s+/g, '').toUpperCase();
         
         let mktDisplayName;
 
-        // Jika kode terdaftar di mapping, gunakan Nama RM
+        // VALIDASI KE RM REFERENCE
         if (rawMktCode && rmReference[rawMktCode]) {
             mktDisplayName = rmReference[rawMktCode];
         } else {
-            // Jika tidak terdaftar, alihkan ke Nama Uker sesuai barisnya
+            // Jika tidak terdaftar, alihkan ke nama Uker (Pencapaian Kantor)
             mktDisplayName = branchName; 
         }
 
-        // 3. Akumulasi Data (Setiap baris wajib masuk hitungan)
+        // Akumulasi Cabang
         recap[ukerCode].os += amt;
         recap[ukerCode].noa += 1;
 
-        // Grouping Detail RM/Uker
+        // Akumulasi RM (PENTING: Jangan sampai undefined)
         if (!recap[ukerCode].marketings[mktDisplayName]) {
             recap[ukerCode].marketings[mktDisplayName] = { os: 0, noa: 0 };
         }
@@ -268,26 +271,33 @@
         totalNOA += 1;
     });
 
-    // --- LOGIKA RISK (TETAP) ---
+    // 3. PROSES RISK (Kenapa DPD hilang? Karena ukerCode di Risk harus sama persis dengan Sales)
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK || "");
-        if (!recap[code]) return;
-
-        let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
-        let dpd = parseInt(item.dpd || 0);
-        let comp = (item.company || "ORGANIC").toUpperCase();
         
-        recap[code].tunggakan += tung;
-        recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-        if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-        recap[code].companies[comp].tunggakan += tung;
-        recap[code].companies[comp].noaRisk += 1;
-        totalRisk += tung;
+        // Cek apakah uker ini ada di recap (yang dibuat dari geoMapping)
+        if (recap[code]) {
+            let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
+            let dpd = parseInt(item.dpd || 0);
+            let comp = (item.company || "ORGANIC").toUpperCase();
+            
+            recap[code].tunggakan += tung;
+            // Update DPD tertinggi di cabang tersebut
+            recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+
+            if (!recap[code].companies[comp]) {
+                recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+            }
+            recap[code].companies[comp].tunggakan += tung;
+            recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+            recap[code].companies[comp].noaRisk += 1;
+            totalRisk += tung;
+        }
     });
 
     globalRecap = recap;
     
-    // Update Tampilan Stats Utama
+    // Update Stats
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
     document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
@@ -295,6 +305,7 @@
 
     renderMarkers();
     renderTrendChart();
+    // Default view: Top 5 Cabang
     updateBarChart(recap, "Top 5 Cabang (Sales)", true);
 }
 
