@@ -17,7 +17,7 @@
         .sidebar {
             position: absolute; top: 80px; right: 20px; width: 340px;
             background: white; border-radius: 12px; padding: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 85vh; overflow-y: auto;
         }
         .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00529c; display: flex; flex-direction: column;}
         .stat-card small { color: #666; font-size: 11px; margin-bottom: 3px; }
@@ -25,28 +25,26 @@
         
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); display: flex; flex-direction: column; justify-content: center;
-            align-items: center; z-index: 9999; font-weight: bold;
+            background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center;
+            align-items: center; z-index: 9999; font-weight: bold; text-align: center; padding: 20px;
         }
         .loader { border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #00529c; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        button.reset-btn { width: 100%; padding: 8px; font-size: 12px; cursor: pointer; background: #00529c; color: white; border: none; border-radius: 5px; margin-top: 15px; transition: background 0.3s;}
-        button.reset-btn:hover { background: #003a6e; }
+        button.reset-btn { width: 100%; padding: 10px; font-size: 12px; cursor: pointer; background: #00529c; color: white; border: none; border-radius: 5px; margin-top: 15px; font-weight: bold; }
 
-        /* Styling for Top Company List */
         .company-item { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-        .company-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-        .company-name { font-weight: bold; font-size: 11px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .company-header { display: flex; justify-content: space-between; align-items: center; }
+        .company-name { font-weight: bold; font-size: 11px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
         .company-noa { color: #27ae60; font-weight: bold; font-size: 11px; }
-        .company-os { color: #666; font-size: 11px; }
+        .company-os { color: #666; font-size: 11px; margin-top: 2px; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div>Memproses Data CSV...</div>
+        <div id="loading-text">Menghubungkan ke Data...</div>
     </div>
     
     <div class="header-title">MAP MONITORING PENCAIRAN FLEXI</div>
@@ -54,7 +52,7 @@
     <div class="sidebar">
         <div style="display:flex; justify-content:space-between; gap:10px;">
             <div class="stat-card" style="flex:1;">
-                <small>TOTAL PENCAIRAN (OS)</small>
+                <small>TOTAL OS</small>
                 <div id="total-os">Rp 0</div>
             </div>
             <div class="stat-card" style="border-left-color: #27ae60; flex:1;">
@@ -62,21 +60,19 @@
                 <div id="total-noa">0</div>
             </div>
         </div>
+        
         <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
         
-        <h4 id="chart-title" style="font-size: 13px; margin: 0 0 10px; color: #333;">Top 5 Cabang (OS)</h4>
-        <div style="height: 280px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
+        <h4 id="chart-title" style="font-size: 13px; margin: 0 0 10px; color: #333;">Top 5 Cabang (Nasional)</h4>
+        <div style="height: 250px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
         
         <div id="company-info" style="display: none;">
-            <h4 style="font-size: 13px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block; padding-bottom: 2px;">
-                TOP COMPANY / INSTANSI
-            </h4>
-            <div id="company-list" style="background: #fff; padding: 5px; border-radius: 5px;">
-                </div>
+            <h4 style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">TOP 5 INSTANSI/COMPANY</h4>
+            <div id="company-list"></div>
         </div>
 
-        <p id="file-info" style="font-size: 10px; color: #999; margin-top: 15px; text-align: center;"></p>
-        <button onclick="location.reload()" class="reset-btn">Reset View</button>
+        <p id="file-info" style="font-size: 9px; color: #999; margin-top: 15px; text-align: center;"></p>
+        <button onclick="location.reload()" class="reset-btn">RESET VIEW NASIONAL</button>
     </div>
 
     <div id="map"></div>
@@ -146,8 +142,6 @@
             "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
             "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
             "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY",
-            
-            // Data SLP
             "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
             "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
             "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
@@ -169,13 +163,20 @@
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
         
         let barChartInstance = null;
-        let globalRecap = {}; // To store recap globally for map access
+        let globalRecap = {};
+
+        // Fungsi Bersih Angka (Penting!)
+        function cleanVal(v) {
+            if (!v) return 0;
+            if (typeof v === 'number') return v;
+            let res = parseFloat(String(v).replace(/[^0-9.-]+/g, ""));
+            return isNaN(res) ? 0 : res;
+        }
 
         async function loadCSV() {
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            
             let fileToTry = `data_${year}${month}.csv`;
             
             try {
@@ -187,28 +188,33 @@
                 }
 
                 if (response.ok) {
-                    document.getElementById('file-info').innerText = "Sumber: " + fileToTry;
+                    document.getElementById('file-info').innerText = "File: " + fileToTry;
                     const csvString = await response.text();
+                    
                     Papa.parse(csvString, {
-                        header: true, dynamicTyping: true, skipEmptyLines: true,
+                        header: true,
+                        skipEmptyLines: 'greedy',
                         complete: function(results) {
                             if(results.data && results.data.length > 0) {
                                 renderDashboard(results.data);
                             } else {
-                                document.getElementById('loading-overlay').innerText = "Data CSV kosong!";
+                                showError("CSV terbaca tapi tidak ada baris data!");
                             }
                         },
-                        error: function(err) {
-                            document.getElementById('loading-overlay').innerText = "Gagal parsing CSV!";
-                        }
+                        error: function() { showError("Gagal memproses struktur CSV!"); }
                     });
                 } else {
-                    document.getElementById('loading-overlay').innerText = "File data tidak ditemukan!";
+                    showError("File CSV tidak ditemukan di folder!");
                 }
             } catch (e) {
-                document.getElementById('loading-overlay').innerText = "Terjadi kesalahan koneksi!";
+                showError("Masalah Koneksi/Browser Block.");
                 console.error(e);
             }
+        }
+
+        function showError(msg) {
+            document.getElementById('loading-text').innerHTML = `<span style="color:red">${msg}</span>`;
+            document.querySelector('.loader').style.display = 'none';
         }
 
         function renderDashboard(data) {
@@ -216,103 +222,73 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+                // Cari kolom Norek (case insensitive)
+                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID || item.NOREK || "";
                 if (!rawNorek) return;
 
                 let norekStr = String(rawNorek).trim();
                 let code = norekStr.substring(0, 4);
 
-                // Perbaikan leading zero
+                // Mapping Cabang
                 if (!geoMapping[code]) {
                     let altCode3 = "0" + norekStr.substring(0, 3);
-                    let altCode2 = "00" + norekStr.substring(0, 2);
                     if (geoMapping[altCode3]) code = altCode3;
-                    else if (geoMapping[altCode2]) code = altCode2;
                 }
-                
-                // Redirect Banyumanik (0311) ke Semarang (0310)
                 if (code === "0311") code = "0310"; 
-
                 if (!geoMapping[code]) return;
-                let branchName = geoMapping[code].name;
 
-                // POINT 3: Inisialisasi companies
-                if (!recap[code]) {
-                    recap[code] = { 
-                        name: branchName, 
-                        os: 0, 
-                        noa: 0, 
-                        marketings: {}, 
-                        companies: {} // Penampung Top Company
-                    };
-                }
+                // Cari kolom OS (case insensitive)
+                let amt = cleanVal(item.approved_amount || item.APPROVED_AMOUNT || item.PLAFOND || 0);
 
-                // Ambil Nilai OS
-                let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || 0;
-                let amt = typeof rawAmount === 'string' ? parseFloat(rawAmount.replace(/,/g, '')) : rawAmount;
-                if (isNaN(amt)) amt = 0;
-
-                // Logika Marketing
-                let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || 
-                             item.uker_mapping || item.UKER_MAPPING || branchName;
-                
+                // Marketing & Company
+                let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || item.UKER_MAPPING || geoMapping[code].name;
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
 
-                // POINT 3: Logika Hitung Company (Company Analysis)
-                // Pastikan kolom CSV lo bernama 'company_name' atau 'COMPANY_NAME'
-                let rawComp = item.company_name || item.COMPANY_NAME || item.REFERRAL_INSTANSI || "ORGANIC/UMUM";
-                if (!recap[code].companies[rawComp]) {
-                    recap[code].companies[rawComp] = { os: 0, noa: 0 };
-                }
-                recap[code].companies[rawComp].os += amt;
-                recap[code].companies[rawComp].noa += 1;
+                let rawComp = item.company_name || item.COMPANY_NAME || item.REFERRAL_INSTANSI || item.INSTANSI || "ORGANIC/UMUM";
 
-                // Update Total Recap
+                if (!recap[code]) {
+                    recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {}, companies: {} };
+                }
+
                 recap[code].os += amt;
                 recap[code].noa += 1;
                 
-                if (!recap[code].marketings[mktName]) {
-                    recap[code].marketings[mktName] = { os: 0, noa: 0 };
-                }
+                if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
                 recap[code].marketings[mktName].os += amt;
                 recap[code].marketings[mktName].noa += 1;
+
+                if (!recap[code].companies[rawComp]) recap[code].companies[rawComp] = { os: 0, noa: 0 };
+                recap[code].companies[rawComp].os += amt;
+                recap[code].companies[rawComp].noa += 1;
 
                 gOS += amt; 
                 gNOA += 1;
             });
 
-            globalRecap = recap; // Simpan secara global
-            
-            // Update Angka di Sidebar
+            globalRecap = recap;
             document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
             document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
             document.getElementById('loading-overlay').style.display = 'none';
 
             updateMap(recap);
-            updateChart(recap, "Top 5 Cabang (OS)", true);
+            updateChart(recap, "Top 5 Cabang (Nasional)", true);
         }
 
         function updateMap(recap) {
-            map.eachLayer((layer) => {
-                if (layer instanceof L.CircleMarker) map.removeLayer(layer);
-            });
+            map.eachLayer((layer) => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
 
             Object.keys(recap).forEach(c => {
                 const geo = geoMapping[c];
-                // Radius dinamis berdasarkan OS, minimal 8, maksimal 25
-                let radius = Math.max(8, Math.min(25, recap[c].os / 100000000));
+                let radius = Math.max(8, Math.min(25, recap[c].os / 250000000));
                 
                 let marker = L.circleMarker([geo.lat, geo.lng], {
                     radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
 
-                marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}<br><small><i>Klik titik untuk detail</i></small>`);
+                marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
                 
                 marker.on('click', () => {
-                    // Update Grafik Marketing
-                    updateChart(recap[c].marketings, `Marketing - ${recap[c].name}`, false);
-                    
-                    // POINT 3: Panggil Update List Company
+                    updateChart(recap[c].marketings, `Top RM - ${recap[c].name}`, false);
                     updateCompanyList(recap[c].companies); 
                 });
             });
@@ -323,27 +299,11 @@
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
 
-            let labels = [], osValues = [], noaValues = [];
+            let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, isBranchMode ? 5 : 10);
 
-            // Sort & Slice Data berdasarkan OS terbesar
-            let sorted;
-            if (isBranchMode) {
-                // Di halaman utama, nampilin Top 5 Cabang
-                sorted = Object.entries(sourceData)
-                    .sort((a,b) => b[1].os - a[1].os)
-                    .slice(0, 5);
-                labels = sorted.map(x => `${x[1].name} (${x[1].noa} NoA)`);
-                osValues = sorted.map(x => x[1].os);
-                noaValues = sorted.map(x => x[1].noa);
-            } else {
-                // Di cabang, nampilin Top 10 RM
-                sorted = Object.entries(sourceData)
-                    .sort((a,b) => b[1].os - a[1].os)
-                    .slice(0, 10);
-                labels = sorted.map(x => `${x[0]} (${x[1].noa} NoA)`);
-                osValues = sorted.map(x => x[1].os);
-                noaValues = sorted.map(x => x[1].noa);
-            }
+            let labels = sorted.map(x => isBranchMode ? x[1].name : x[0]);
+            let osValues = sorted.map(x => x[1].os);
+            let noaValues = sorted.map(x => x[1].noa);
 
             barChartInstance = new Chart(ctx, {
                 type: 'bar',
@@ -353,77 +313,43 @@
                         data: osValues, 
                         backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
                         borderRadius: 5,
-                        noa: noaValues // Menyimpan data NOA untuk Tooltip
+                        noa: noaValues 
                     }]
                 },
                 options: { 
-                    indexAxis: 'y', // Grafik horizontal
-                    maintainAspectRatio: false, 
+                    indexAxis: 'y', maintainAspectRatio: false, 
                     plugins: { 
                         legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                // Tooltip detail: OS & NOA
-                                label: function(context) {
-                                    let val = context.parsed.x;
-                                    let noa = context.dataset.noa[context.dataIndex];
-                                    return [
-                                        `OS: Rp ${val.toLocaleString('id-ID')}`,
-                                        `Total: ${noa} NoA`
-                                    ];
-                                }
-                            }
-                        }
+                        tooltip: { callbacks: { label: (ctx) => `OS: Rp ${ctx.parsed.x.toLocaleString('id-ID')} | NOA: ${ctx.dataset.noa[ctx.dataIndex]}` } }
                     },
                     scales: { 
-                        x: { 
-                            ticks: { 
-                                // Format sumbu X biar lebih rapi (jt/M)
-                                callback: v => (v >= 1000000000) ? (v/1000000000).toFixed(1) + ' M' : (v/1000000).toFixed(0) + ' jt' 
-                            } 
-                        },
-                        y: {
-                            ticks: {
-                                font: { size: 10 } // Ukuran font label RM/Cabang
-                            }
-                        }
+                        x: { ticks: { callback: v => (v >= 1e9) ? (v/1e9).toFixed(1) + ' M' : (v/1e6).toFixed(0) + ' jt' } },
+                        y: { ticks: { font: { size: 9 } } }
                     }
                 }
             });
         }
 
-        // POINT 3: Fungsi Baru untuk Nampilin List Top Company (Company Analysis)
         function updateCompanyList(companyData) {
             const container = document.getElementById('company-info');
             const list = document.getElementById('company-list');
-            
-            if (!container || !list) return;
+            container.style.display = 'block';
 
-            // Urutkan company berdasarkan OS terbesar (Ambil Top 5)
-            const sortedComp = Object.entries(companyData)
-                .sort((a, b) => b[1].os - a[1].os)
-                .slice(0, 5);
+            const sorted = Object.entries(companyData).sort((a, b) => b[1].os - a[1].os).slice(0, 5);
 
-            if (sortedComp.length > 0) {
-                container.style.display = 'block'; // Munculkan container
-                list.innerHTML = sortedComp.map((comp, index) => {
-                    // comp[0] adalah nama company, comp[1] adalah objek {os, noa}
-                    let osFormatted = (comp[1].os >= 1000000000) ? (comp[1].os / 1000000000).toFixed(2) + ' Milyar' : (comp[1].os / 1000000).toFixed(1) + ' Juta';
-                    return `
-                    <div class="company-item">
-                        <div class="company-header">
-                            <div class="company-name" title="${comp[0]}">${index + 1}. ${comp[0]}</div>
-                            <div class="company-noa">${comp[1].noa} NoA</div>
-                        </div>
-                        <div class="company-os">Rp ${osFormatted}</div>
-                    </div>`;
-                }).join('');
-            } else {
-                container.style.display = 'none'; // Sembunyikan jika tidak ada data
-            }
+            list.innerHTML = sorted.map((comp, i) => {
+                let osTxt = (comp[1].os >= 1e9) ? (comp[1].os / 1e9).toFixed(2) + ' M' : (comp[1].os / 1e6).toFixed(1) + ' jt';
+                return `
+                <div class="company-item">
+                    <div class="company-header">
+                        <div class="company-name">${i + 1}. ${comp[0]}</div>
+                        <div class="company-noa">${comp[1].noa} NOA</div>
+                    </div>
+                    <div class="company-os">Rp ${osTxt}</div>
+                </div>`;
+            }).join('');
         }
 
-        // Mulai Loading
         loadCSV();
     </script>
 </body>
