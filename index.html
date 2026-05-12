@@ -265,39 +265,77 @@
     }
 
     function updateChart(sourceData, title, isBranchMode) {
-        const ctx = document.getElementById('barChart').getContext('2d');
-        if (barChartInstance) barChartInstance.destroy();
-        document.getElementById('chart-title').innerText = title;
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            document.getElementById('chart-title').innerText = title;
 
-        let labels, dataValues;
+            let labels = [], osValues = [], noaValues = [];
 
-        if (isBranchMode) {
-            const top5 = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-            labels = top5.map(x => x[1].name);
-            dataValues = top5.map(x => x[1].os);
-        } else {
-            const topMkt = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
-            labels = topMkt.map(x => x[0]);
-            dataValues = topMkt.map(x => x[1].os);
-        }
-
-        barChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{ 
-                    data: dataValues, 
-                    backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
-                    borderRadius: 5 
-                }]
-            },
-            options: { 
-                indexAxis: 'y', maintainAspectRatio: false, 
-                plugins: { legend: { display: false } },
-                scales: { x: { ticks: { callback: v => (v/1000000).toFixed(0) + 'jt' } } }
+            // 1. Sort & Slice Data
+            let sorted;
+            if (isBranchMode) {
+                sorted = Object.entries(sourceData)
+                    .sort((a,b) => b[1].os - a[1].os)
+                    .slice(0, 5);
+                // Tambahkan NOA ke dalam Label (Sumbu Y)
+                labels = sorted.map(x => `${x[1].name} (${x[1].noa} NoA)`);
+                osValues = sorted.map(x => x[1].os);
+                noaValues = sorted.map(x => x[1].noa);
+            } else {
+                sorted = Object.entries(sourceData)
+                    .sort((a,b) => b[1].os - a[1].os)
+                    .slice(0, 10);
+                // Tambahkan NOA ke dalam Label Marketing
+                labels = sorted.map(x => `${x[0]} (${x[1].noa} NoA)`);
+                osValues = sorted.map(x => x[1].os);
+                noaValues = sorted.map(x => x[1].noa);
             }
-        });
-    }
+
+            barChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ 
+                        data: osValues, 
+                        backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
+                        borderRadius: 5,
+                        noa: noaValues 
+                    }]
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.parsed.x;
+                                    let noa = context.dataset.noa[context.dataIndex];
+                                    return [
+                                        `OS: Rp ${val.toLocaleString('id-ID')}`,
+                                        `Total: ${noa} NoA`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: { 
+                        x: { 
+                            ticks: { 
+                                // Format sumbu X biar lebih rapi (jt/M)
+                                callback: v => (v >= 1000000000) ? (v/1000000000).toFixed(1) + ' M' : (v/1000000).toFixed(0) + ' jt' 
+                            } 
+                        },
+                        y: {
+                            ticks: {
+                                font: { size: 10 } // Kecilin dikit fontnya biar muat teks NoA-nya
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
     loadCSV();
 </script>
