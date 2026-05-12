@@ -46,6 +46,11 @@
         <hr>
         <h4 id="chart-title" style="font-size: 13px; margin: 15px 0 5px;">Top 5 Cabang (OS)</h4>
         <div style="height: 300px;"><canvas id="barChart"></canvas></div>
+        <div id="company-info" style="margin-top: 15px; display: none;">
+            <h4 style="font-size: 12px; margin-bottom: 5px; color: #2c3e50;">Top Company / Instansi</h4>
+            <div id="company-list" style="font-size: 11px; background: #f0f3f5; padding: 10px; border-radius: 8px;">
+                </div>
+        </div>
         <p id="file-info" style="font-size: 10px; color: #999; margin-top: 10px;"></p>
         <button onclick="location.reload()" style="width:100%; padding:5px; font-size:10px; cursor:pointer;">Reset View</button>
     </div>
@@ -208,7 +213,7 @@
             let branchName = geoMapping[code].name;
 
             if (!recap[code]) {
-                recap[code] = { name: branchName, os: 0, noa: 0, marketings: {} };
+                recap[code] = { name: branchName, os: 0, noa: 0, marketings: {}, companies };
             }
 
             // Ambil Nilai OS
@@ -227,6 +232,13 @@
             
             if (!recap[code].marketings[mktName]) {
                 recap[code].marketings[mktName] = { os: 0, noa: 0 };
+
+            let rawComp = item.company_name || item.COMPANY_NAME || "UMUM/ORGANIC";
+            if (!recap[code].companies[rawComp]) {
+            recap[code].companies[rawComp] = { os: 0, noa: 0 };
+        }
+        recap[code].companies[rawComp].os += amt;
+        recap[code].companies[rawComp].noa += 1;
             }
             recap[code].marketings[mktName].os += amt;
             recap[code].marketings[mktName].noa += 1;
@@ -264,28 +276,28 @@
         });
     }
 
-    function updateChart(sourceData, title, isBranchMode) {
+function updateChart(sourceData, title, isBranchMode) {
             const ctx = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
 
             let labels = [], osValues = [], noaValues = [];
 
-            // 1. Sort & Slice Data
+            // Sort & Slice Data berdasarkan OS terbesar
             let sorted;
             if (isBranchMode) {
+                // Di halaman utama, nampilin Top 5 Cabang
                 sorted = Object.entries(sourceData)
                     .sort((a,b) => b[1].os - a[1].os)
                     .slice(0, 5);
-                // Tambahkan NOA ke dalam Label (Sumbu Y)
                 labels = sorted.map(x => `${x[1].name} (${x[1].noa} NoA)`);
                 osValues = sorted.map(x => x[1].os);
                 noaValues = sorted.map(x => x[1].noa);
             } else {
+                // Di cabang, nampilin Top 10 RM
                 sorted = Object.entries(sourceData)
                     .sort((a,b) => b[1].os - a[1].os)
                     .slice(0, 10);
-                // Tambahkan NOA ke dalam Label Marketing
                 labels = sorted.map(x => `${x[0]} (${x[1].noa} NoA)`);
                 osValues = sorted.map(x => x[1].os);
                 noaValues = sorted.map(x => x[1].noa);
@@ -299,16 +311,17 @@
                         data: osValues, 
                         backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
                         borderRadius: 5,
-                        noa: noaValues 
+                        noa: noaValues // Menyimpan data NOA untuk Tooltip
                     }]
                 },
                 options: { 
-                    indexAxis: 'y', 
+                    indexAxis: 'y', // Grafik horizontal
                     maintainAspectRatio: false, 
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
+                                // Tooltip detail: OS & NOA
                                 label: function(context) {
                                     let val = context.parsed.x;
                                     let noa = context.dataset.noa[context.dataIndex];
@@ -329,7 +342,7 @@
                         },
                         y: {
                             ticks: {
-                                font: { size: 10 } // Kecilin dikit fontnya biar muat teks NoA-nya
+                                font: { size: 10 } // Ukuran font label RM/Cabang
                             }
                         }
                     }
@@ -337,7 +350,39 @@
             });
         }
 
-    loadCSV();
-</script>
+        // POINT 3: Fungsi Baru untuk Nampilin List Top Company (Company Analysis)
+        function updateCompanyList(companyData) {
+            const container = document.getElementById('company-info');
+            const list = document.getElementById('company-list');
+            
+            if (!container || !list) return;
+
+            // Urutkan company berdasarkan OS terbesar (Ambil Top 5)
+            const sortedComp = Object.entries(companyData)
+                .sort((a, b) => b[1].os - a[1].os)
+                .slice(0, 5);
+
+            if (sortedComp.length > 0) {
+                container.style.display = 'block'; // Munculkan container
+                list.innerHTML = sortedComp.map((comp, index) => {
+                    // comp[0] adalah nama company, comp[1] adalah objek {os, noa}
+                    let osFormatted = (comp[1].os >= 1000000000) ? (comp[1].os / 1000000000).toFixed(2) + ' Milyar' : (comp[1].os / 1000000).toFixed(1) + ' Juta';
+                    return `
+                    <div class="company-item">
+                        <div class="company-header">
+                            <div class="company-name" title="${comp[0]}">${index + 1}. ${comp[0]}</div>
+                            <div class="company-noa">${comp[1].noa} NoA</div>
+                        </div>
+                        <div class="company-os">Rp ${osFormatted}</div>
+                    </div>`;
+                }).join('');
+            } else {
+                container.style.display = 'none'; // Sembunyikan jika tidak ada data
+            }
+        }
+
+        // Mulai Loading
+        loadCSV();
+    </script>
 </body>
 </html>
