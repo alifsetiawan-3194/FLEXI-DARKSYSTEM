@@ -46,6 +46,7 @@
         <hr>
         <h4 style="font-size: 13px; margin: 15px 0 5px;">Top 5 Cabang (OS)</h4>
         <div style="height: 250px;"><canvas id="barChart"></canvas></div>
+        <p id="file-info" style="font-size: 10px; color: #999; margin-top: 10px;"></p>
     </div>
 
     <div id="map"></div>
@@ -83,22 +84,34 @@
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+        
+        let barChartInstance = null; // Biar chart bisa di-reset
 
         async function loadCSV() {
-    try {
-        // Logika otomatis ambil file berdasarkan tahun dan bulan sekarang
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0'); // +1 karena bulan mulai dari 0
-        const fileName = `data_${year}${month}.csv`; 
-        
-        console.log("Mencoba memuat file:", fileName);
-        
-        const response = await fetch(fileName);
-        if (!response.ok) throw new Error("File bulan ini belum diupload");
-        
-        const csvString = await response.text();
-                
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            // Coba file bulan ini dulu, kalau gagal coba bulan lalu
+            let fileToTry = `data_${year}${month}.csv`;
+            let response = await fetch(fileToTry);
+
+            if (!response.ok) {
+                console.log(fileToTry + " tidak ketemu, mencoba bulan lalu...");
+                const lastMonth = String(now.getMonth()).padStart(2, '0'); 
+                fileToTry = `data_${year}${lastMonth}.csv`;
+                response = await fetch(fileToTry);
+            }
+
+            if (!response.ok) {
+                // Jika masih gagal, coba data.csv (default)
+                fileToTry = 'data.csv';
+                response = await fetch(fileToTry);
+            }
+
+            if (response.ok) {
+                document.getElementById('file-info').innerText = "Sumber: " + fileToTry;
+                const csvString = await response.text();
                 Papa.parse(csvString, {
                     header: true,
                     dynamicTyping: true,
@@ -108,8 +121,8 @@
                         document.getElementById('loading-overlay').style.display = 'none';
                     }
                 });
-            } catch (e) {
-                document.getElementById('loading-overlay').innerText = "File data.csv belum ada!";
+            } else {
+                document.getElementById('loading-overlay').innerText = "Data tidak ditemukan! (data_YYYYMM.csv)";
             }
         }
 
@@ -118,8 +131,12 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-                if (!item.brdesc) return;
-                const code = String(item.brdesc).substring(0, 4);
+                // Pake uker_code hasil query SQL lo biar lebih akurat
+                const code = item.uker_code ? String(item.uker_code).padStart(4, '0') : 
+                             (item.brdesc ? String(item.brdesc).substring(0, 4) : null);
+                
+                if (!code || !geoMapping[code]) return;
+                
                 if (!recap[code]) recap[code] = { os: 0, noa: 0 };
                 
                 let amt = String(item.approved_amount).replace(/,/g, '');
@@ -133,25 +150,36 @@
             document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
             document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
 
-            Object.keys(recap).forEach(c => {
-                const geo = geoMapping[c];
-                if (geo) {
-                    L.circleMarker([geo.lat, geo.lng], {
-                        radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
-                        fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
-                    }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString()}`);
-                }
+            // Hapus marker lama sebelum gambar baru
+            map.eachLayer((layer) => {
+                if (layer instanceof L.CircleMarker) map.removeLayer(layer);
             });
 
-            // Logic Bar Chart
+            Object.keys(recap).forEach(c => {
+                const geo = geoMapping[c];
+                L.circleMarker([geo.lat, geo.lng], {
+                    radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
+                    fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+                }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString()}<br>NOA: ${recap[c].noa}`);
+            });
+
+            // Handle Chart (Destroy yang lama biar ga error)
             const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-            new Chart(document.getElementById('barChart'), {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            
+            if (barChartInstance) barChartInstance.destroy();
+            
+            barChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: top5.map(x => geoMapping[x[0]] ? geoMapping[x[0]].name : x[0]),
-                    datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c' }]
+                    labels: top5.map(x => geoMapping[x[0]].name),
+                    datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c', borderRadius: 5 }]
                 },
-                options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+                options: { 
+                    indexAxis: 'y', 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } } 
+                }
             });
         }
 
