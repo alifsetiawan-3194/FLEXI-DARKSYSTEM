@@ -220,22 +220,52 @@
             });
 
             sales.forEach(item => {
-                let code = getUker(item.loan_account_id || item.NOREK || "");
-                if (!code) return;
-                
-                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
-                let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
-                
-                // --- LOGIKA HARDCODE RM ---
-                let mktName = rmReference[rawMkt] ;
+                let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
+                if (!ukerCode) return;
 
-                recap[code].os += amt;
-                recap[code].noa += 1;
+                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
                 
-                if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
-                recap[code].marketings[mktName].os += amt;
-                recap[code].marketings[mktName].noa += 1;
-                
+                // Ambil value kolom, bersihkan spasi
+                let refCode = (item.referral_code || "").trim();
+                let rgDesc = (item.rg_desc || "").trim();
+                let mbDesc = (item.mb_desc || "").trim();
+                let rawMkt = (item.final_marketing_name || item.UKER_MAPPING || "").trim();
+
+                // Ambil nama cabang dari geoMapping
+                let branchName = geoMapping[ukerCode].name;
+
+                let mktName;
+
+                // --- LOGIKA UTAMA ---
+                // Cek apakah 3 kolom identitas utama kosong
+                if (!refCode && !rgDesc && !mbDesc) {
+                    // Jika ketiganya kosong, masukkan ke nama Cabang
+                    mktName = branchName;
+                } else {
+                    // Jika ada isinya, coba cari di rmReference
+                    // Prioritas cari pake rawMkt, kalau gak ada pake refCode
+                    let identifier = rawMkt || refCode;
+                    
+                    if (rmReference[identifier]) {
+                        mktName = rmReference[identifier];
+                    } else {
+                        // Jika ada isinya tapi gak kedaftar di mapping kita, 
+                        // tetap masukkan ke nama Cabang (sesuai request lo: gak mau ada 'RM Lainnya')
+                        mktName = branchName;
+                    }
+                }
+
+                // 1. Update Akumulasi per Cabang (Tetap)
+                recap[ukerCode].os += amt;
+                recap[ukerCode].noa += 1;
+
+                // 2. Update Breakdown per RM/Kantor
+                if (!recap[ukerCode].marketings[mktName]) {
+                    recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
+                }
+                recap[ukerCode].marketings[mktName].os += amt;
+                recap[ukerCode].marketings[mktName].noa += 1;
+
                 totalOS += amt;
                 totalNOA += 1;
             });
