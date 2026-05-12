@@ -3,36 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring Pencairan Selindo</title>
-    
+    <title>Dashboard Monitoring Otomatis</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Roboto', sans-serif; background: #f4f7f6; }
         #map { height: 100vh; width: 100%; z-index: 1; }
-
         .header-title {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             background: white; padding: 10px 25px; border-radius: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 1000; font-weight: bold;
         }
-
         .sidebar {
             position: absolute; top: 80px; right: 20px; width: 320px;
             background: white; border-radius: 12px; padding: 20px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 80vh; overflow-y: auto;
         }
-
-        .chart-container { height: 250px; margin-top: 15px; }
         .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00529c; }
         .stat-card small { color: #666; font-size: 11px; }
         .stat-card div { font-weight: bold; font-size: 16px; color: #333; }
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); display: flex; justify-content: center;
+            align-items: center; z-index: 9999; font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header-title">MONITORING PROGRESS PENCAIRAN 2026</div>
+    <div id="loading-overlay">Memproses Data CSV...</div>
+    <div class="header-title">MAP MONITORING PENCAIRAN</div>
 
     <div class="sidebar">
         <div class="stat-card">
@@ -43,21 +43,18 @@
             <small>TOTAL NOA</small>
             <div id="total-noa">0</div>
         </div>
-        
         <hr>
         <h4 style="font-size: 13px; margin: 15px 0 5px;">Top 5 Cabang (OS)</h4>
-        <div class="chart-container">
-            <canvas id="barChart"></canvas>
-        </div>
+        <div style="height: 250px;"><canvas id="barChart"></canvas></div>
     </div>
 
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
-        // 1. DATABASE KOORDINAT CABANG (Mapping Internal Lo)
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.2201, lng: 106.8185 },
             "0020": { name: "WARUNG JATI", lat: -6.2735, lng: 106.8291 },
@@ -84,80 +81,71 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        // 2. DATA MENTAH (Nanti lo bisa fetch dari Spreadsheet/CSV)
-        // Format: [loan_account_id, status, amount, uker_code]
-        const rawData = [
-            { id: "001", status: "LOAN_CREATED", amount: 50000000, uker: "3210" },
-            { id: "002", status: "LOAN_CREATED", amount: 25000000, uker: "0110" },
-            { id: "003", status: "LOAN_CREATED", amount: 100000000, uker: "3210" },
-            { id: "004", status: "LOAN_CREATED", amount: 75000000, uker: "0410" },
-            { id: "005", status: "LOAN_CREATED", amount: 30000000, uker: "1110" },
-            { id: "006", status: "LOAN_CREATED", amount: 90000000, uker: "1310" },
-        ];
-
-        // 3. SETUP PETA
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        // 4. LOGIKA AGREGASI DATA
-        const processData = () => {
-            let recap = {};
-            let grandTotalOS = 0;
-            let grandTotalNOA = 0;
+        async function loadCSV() {
+            try {
+                const response = await fetch('data.csv'); // Membaca file data.csv di repo
+                const csvString = await response.text();
+                
+                Papa.parse(csvString, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        renderDashboard(results.data);
+                        document.getElementById('loading-overlay').style.display = 'none';
+                    }
+                });
+            } catch (e) {
+                document.getElementById('loading-overlay').innerText = "File data.csv belum ada!";
+            }
+        }
 
-            rawData.forEach(item => {
-                if (!recap[item.uker]) recap[item.uker] = { os: 0, noa: 0 };
-                recap[item.uker].os += item.amount;
-                recap[item.uker].noa += 1;
-                grandTotalOS += item.amount;
-                grandTotalNOA += 1;
+        function renderDashboard(data) {
+            let recap = {};
+            let gOS = 0, gNOA = 0;
+
+            data.forEach(item => {
+                if (!item.brdesc) return;
+                const code = String(item.brdesc).substring(0, 4);
+                if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+                
+                let amt = String(item.approved_amount).replace(/,/g, '');
+                amt = parseFloat(amt) || 0;
+                
+                recap[code].os += amt;
+                recap[code].noa += 1;
+                gOS += amt; gNOA += 1;
             });
 
-            // Update Header Sidebar
-            document.getElementById('total-os').innerText = "Rp " + grandTotalOS.toLocaleString('id-ID');
-            document.getElementById('total-noa').innerText = grandTotalNOA.toLocaleString('id-ID');
+            document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
+            document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
 
-            // Gambar di Peta
-            Object.keys(recap).forEach(ukerCode => {
-                const geo = geoMapping[ukerCode];
+            Object.keys(recap).forEach(c => {
+                const geo = geoMapping[c];
                 if (geo) {
-                    const data = recap[ukerCode];
                     L.circleMarker([geo.lat, geo.lng], {
-                        radius: Math.max(8, data.os / 10000000), // Ukuran bubble dinamis
+                        radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
                         fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
-                    }).addTo(map)
-                    .bindPopup(`<b>${geo.name}</b><br>OS: Rp ${data.os.toLocaleString()}<br>NOA: ${data.noa}`);
+                    }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString()}`);
                 }
             });
 
-            return recap;
-        };
+            // Logic Bar Chart
+            const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
+            new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: top5.map(x => geoMapping[x[0]] ? geoMapping[x[0]].name : x[0]),
+                    datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c' }]
+                },
+                options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+            });
+        }
 
-        const recapData = processData();
-
-        // 5. SETUP CHART
-        const top5 = Object.entries(recapData)
-            .sort((a,b) => b[1].os - a[1].os)
-            .slice(0, 5);
-
-        new Chart(document.getElementById('barChart'), {
-            type: 'bar',
-            data: {
-                labels: top5.map(x => geoMapping[x[0]].name),
-                datasets: [{
-                    label: 'OS',
-                    data: top5.map(x => x[1].os),
-                    backgroundColor: '#00529c',
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            }
-        });
-
+        loadCSV();
     </script>
 </body>
 </html>
