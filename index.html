@@ -214,6 +214,7 @@
         function processData(sales, risk) {
             let recap = {};
             let totalOS = 0, totalNOA = 0, totalRisk = 0;
+            
             Object.keys(geoMapping).forEach(c => {
                 recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
             });
@@ -221,18 +222,25 @@
             sales.forEach(item => {
                 let code = getUker(item.loan_account_id || item.NOREK || "");
                 if (!code) return;
+                
                 let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
                 let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
-                let mktName = rmReference[rawMkt] || rawMkt;
+                
+                // --- LOGIKA HARDCODE RM ---
+                let mktName = rmReference[rawMkt] || (rawMkt.length > 5 ? "RM LAINNYA ("+rawMkt+")" : rawMkt);
+
                 recap[code].os += amt;
                 recap[code].noa += 1;
+                
                 if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
                 recap[code].marketings[mktName].os += amt;
                 recap[code].marketings[mktName].noa += 1;
+                
                 totalOS += amt;
                 totalNOA += 1;
             });
 
+            // ... (sisa logika risk tetap sama)
             risk.forEach(item => {
                 let code = getUker(item.loan_account_id || item.NOREK || "");
                 if (!code) return;
