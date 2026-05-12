@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integrated Dashboard Sales & Risk</title>
+    <title>Dashboard Monitoring Flexi Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -43,28 +43,33 @@
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Memproses Mapping RM & Cabang...</div>
+        <div id="loading-text">Sinkronisasi Data Sales & Risk...</div>
     </div>
     
-    <div class="header-title">SALES & RISK MONITORING DASHBOARD</div>
+    <div class="header-title">DASHBOARD MONITORING FLEXI</div>
 
     <div class="sidebar">
         <div style="display:flex; justify-content:space-between; gap:10px;">
             <div class="stat-card" style="flex:1;">
-                <small>TOTAL PENCAIRAN</small>
+                <small>TOTAL OS BULAN INI</small>
                 <div id="total-os">Rp 0</div>
             </div>
-            <div class="stat-card" style="border-left-color: #e53e3e; flex:1;">
+            <div class="stat-card" style="border-left-color: #27ae60; flex:1;">
                 <small>TOTAL NOA</small>
                 <div id="total-noa">0</div>
             </div>
         </div>
         
-        <h4 id="chart-title" style="font-size: 13px; margin: 15px 0 10px; color: #333;">Top 5 Cabang</h4>
+        <div class="stat-card" style="border-left-color: #e53e3e;">
+            <small>TOTAL TUNGGAKAN (NPL/RISK)</small>
+            <div id="total-risk">Rp 0</div>
+        </div>
+        
+        <h4 id="chart-title" style="font-size: 13px; margin: 15px 0 10px; color: #333;">Top 5 Cabang (Sales)</h4>
         <div style="height: 250px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
         
         <div id="company-info" style="display: none;">
-            <h4 id="company-title" style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">RANKING INSTANSI</h4>
+            <h4 id="company-title" style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">INSTANSI BERISIKO (TUNGGAKAN)</h4>
             <div id="company-list"></div>
         </div>
 
@@ -78,7 +83,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
-        // --- DATA MAPPING CABANG ---
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
             "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
@@ -105,7 +109,6 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        // --- DATA MAPPING RM ---
         const rmReference = {
             "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
             "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
@@ -170,104 +173,129 @@
 
         function standardizeCompanyName(name) {
             if (!name) return "ORGANIC/UMUM";
-            let clean = name.toString().toUpperCase()
+            return name.toString().toUpperCase()
                 .replace(/^(PT\.|PT|PT |P\.T\.)\s+/g, '')
                 .replace(/\s+(TBK|T\.BK)$/g, '')
                 .trim().replace(/\s+/g, ' ');
-            return clean === "" || clean === "-" ? "ORGANIC/UMUM" : clean;
         }
 
-        async function loadCSV() {
+        function getUker(id) {
+            if(!id) return null;
+            let code = id.substring(0, 4);
+            if (!geoMapping[code]) {
+                let alt = "0" + id.substring(0, 3);
+                if (geoMapping[alt]) code = alt;
+            }
+            if (code === "1311") code = "0310"; 
+            return geoMapping[code] ? code : null;
+        }
+
+        async function initDashboard() {
             try {
                 const now = new Date();
-                const fileToTry = `data_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}.csv`;
-                let response = await fetch(fileToTry);
-                
-                if (!response.ok) {
-                    response = await fetch(`data_${now.getFullYear()}${String(now.getMonth()).padStart(2, '0')}.csv`);
-                }
+                const fileSales = `data_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}.csv`;
+                const fileRisk = `data_performance.csv`;
 
-                if (response.ok) {
-                    const csvString = await response.text();
-                    Papa.parse(csvString, {
-                        header: true, skipEmptyLines: true,
-                        complete: (results) => renderDashboard(results.data)
-                    });
-                } else {
-                    throw new Error("File CSV tidak ditemukan.");
-                }
+                const [resSales, resRisk] = await Promise.all([
+                    fetch(fileSales).catch(() => fetch(`data_${now.getFullYear()}${String(now.getMonth()).padStart(2, '0')}.csv`)),
+                    fetch(fileRisk).catch(() => null)
+                ]);
+
+                if (!resSales.ok) throw new Error("File Sales tidak ditemukan");
+                
+                const salesText = await resSales.text();
+                const riskText = resRisk && resRisk.ok ? await resRisk.text() : "";
+
+                const salesData = Papa.parse(salesText, { header: true, skipEmptyLines: true }).data;
+                const riskData = riskText ? Papa.parse(riskText, { header: true, skipEmptyLines: true }).data : [];
+
+                processAllData(salesData, riskData);
             } catch (e) {
                 document.getElementById('loading-text').innerHTML = `<span style="color:red">${e.message}</span>`;
             }
         }
 
-        function renderDashboard(data) {
+        function processAllData(sales, risk) {
             let recap = {};
-            let totalOS = 0, totalNOA = 0;
+            let totalOS = 0, totalNOA = 0, totalRisk = 0;
 
-            data.forEach(item => {
-                let norek = item.loan_account_id || item.NOREK || "";
-                let code = norek.substring(0, 4);
-                if (!geoMapping[code]) {
-                    let alt = "0" + norek.substring(0, 3);
-                    if (geoMapping[alt]) code = alt;
-                }
-                
-                // Khusus handling 0311 diarahkan ke Semarang (0310) sesuai mapping lo
-                if (code === "1311") code = "0310"; 
-                if (!geoMapping[code]) return;
+            // Inisialisasi Recap
+            Object.keys(geoMapping).forEach(c => {
+                recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
+            });
+
+            // 1. Proses Data Sales (Pencairan)
+            sales.forEach(item => {
+                let code = getUker(item.loan_account_id || item.NOREK || "");
+                if (!code) return;
 
                 let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
                 let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
-                
-                // --- LOGIKA MAPPING RM ---
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
-                // Jika isinya masih kode aneh (tidak ada di reference), kita bersihkan
-                if (mktName.startsWith("RBO") || mktName.startsWith("SLP")) {
-                    if (!rmReference[mktName]) mktName = "RM " + geoMapping[code].name;
-                }
-
-                let comp = standardizeCompanyName(item.company || item.COMPANY);
-
-                if (!recap[code]) {
-                    recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {}, companies: {} };
-                }
 
                 recap[code].os += amt;
                 recap[code].noa += 1;
-                recap[code].marketings[mktName] = (recap[code].marketings[mktName] || 0) + amt;
                 
-                if (!recap[code].companies[comp]) recap[code].companies[comp] = { os: 0, noa: 0 };
-                recap[code].companies[comp].os += amt;
-                recap[code].companies[comp].noa += 1;
+                // Simpan detail OS dan NOA per RM
+                if (!recap[code].marketings[mktName]) {
+                    recap[code].marketings[mktName] = { os: 0, noa: 0 };
+                }
+                recap[code].marketings[mktName].os += amt;
+                recap[code].marketings[mktName].noa += 1;
 
                 totalOS += amt;
                 totalNOA += 1;
             });
 
+            // 2. Proses Data Risk (Tunggakan)
+            risk.forEach(item => {
+                let code = getUker(item.loan_account_id || item.NOREK || "");
+                if (!code) return;
+
+                let tung = cleanVal(item.total_tunggakan || 0);
+                let dpd = parseInt(item.dpd || 0);
+                let comp = standardizeCompanyName(item.company || "ORGANIC");
+
+                recap[code].tunggakan += tung;
+                recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+
+                if (!recap[code].companies[comp]) {
+                    recap[code].companies[comp] = { tunggakan: 0, dpd: 0 };
+                }
+                recap[code].companies[comp].tunggakan += tung;
+                recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+                
+                totalRisk += tung;
+            });
+
             globalRecap = recap;
             document.getElementById('total-os').innerText = "Rp " + (totalOS/1e9).toFixed(2) + " M";
             document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
+            document.getElementById('total-risk').innerText = "Rp " + (totalRisk/1e6).toFixed(1) + " jt";
             document.getElementById('loading-overlay').style.display = 'none';
 
-            updateMap();
-            updateChart(recap, "Top 5 Cabang", true);
+            renderMarkers();
+            updateChart(recap, "Top 10 Cabang (Sales)", true);
         }
 
-        function updateMap() {
+        function renderMarkers() {
             Object.keys(globalRecap).forEach(c => {
-                const geo = geoMapping[c];
                 const d = globalRecap[c];
+                const geo = geoMapping[c];
+                if (d.os === 0 && d.tunggakan === 0) return;
+
+                // Hijau = Lancar, Kuning = DPD 1-90, Merah = NPL > 90
+                let color = d.maxDpd > 90 ? "#e53e3e" : (d.maxDpd > 0 ? "#f6e05e" : "#27ae60");
                 let radius = Math.max(8, Math.min(25, d.os / 250000000));
-                
+
                 let marker = L.circleMarker([geo.lat, geo.lng], {
-                    radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+                    radius: radius, fillColor: color, color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
 
-                marker.bindPopup(`<b>${d.name}</b><br>OS: Rp ${(d.os/1e6).toFixed(1)} jt<br>NOA: ${d.noa}`);
+                marker.bindPopup(`<b>${d.name}</b><hr>Sales: Rp ${(d.os/1e6).toFixed(1)} jt<br>NOA: ${d.noa}<br>Tunggakan: Rp ${(d.tunggakan/1e6).toFixed(1)} jt`);
                 marker.on('click', () => {
                     updateChart(d.marketings, `Top RM - ${d.name}`, false);
-                    updateCompanyList(d.companies);
+                    updateCompanyRisk(d.companies);
                 });
             });
         }
@@ -277,46 +305,76 @@
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
 
-            let dataEntries = isBranch 
-                ? Object.entries(sourceData).map(x => [x[1].name, x[1].os])
-                : Object.entries(sourceData);
+            // Logika baru untuk handle data RM yang ada OS & NOA
+            let labels = [];
+            let osValues = [];
+            let noaValues = [];
 
-            let sorted = dataEntries.sort((a,b) => b[1] - a[1]).slice(0, 10);
+            if (isBranch) {
+                let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
+                labels = sorted.map(x => x[1].name);
+                osValues = sorted.map(x => x[1].os);
+                noaValues = sorted.map(x => x[1].noa);
+            } else {
+                let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
+                labels = sorted.map(x => x[0]);
+                osValues = sorted.map(x => x[1].os);
+                noaValues = sorted.map(x => x[1].noa);
+            }
             
             barChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: sorted.map(x => x[0]),
-                    datasets: [{ data: sorted.map(x => x[1]), backgroundColor: isBranch ? '#00529c' : '#27ae60', borderRadius: 5 }]
+                    labels: labels,
+                    datasets: [{ 
+                        data: osValues, 
+                        backgroundColor: '#00529c', 
+                        borderRadius: 5,
+                        noa: noaValues // Simpan NOA di sini untuk tooltip
+                    }]
                 },
                 options: { 
                     indexAxis: 'y', maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.parsed.x;
+                                    let noa = context.dataset.noa[context.dataIndex];
+                                    return `OS: Rp ${(val/1e6).toFixed(1)}jt | NOA: ${noa}`;
+                                }
+                            }
+                        }
+                    },
                     scales: { 
-                        x: { ticks: { callback: v => (v/1e6).toFixed(0) + 'jt' } },
-                        y: { ticks: { font: { size: 9 } } }
+                        x: { display: false }, 
+                        y: { ticks: { font: { size: 9 } } } 
                     }
                 }
             });
         }
 
-        function updateCompanyList(companies) {
+        function updateCompanyRisk(companies) {
             const container = document.getElementById('company-info');
             const list = document.getElementById('company-list');
             container.style.display = 'block';
 
-            const sorted = Object.entries(companies).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
-            list.innerHTML = sorted.map((s, i) => `
+            const sorted = Object.entries(companies)
+                .sort((a,b) => b[1].tunggakan - a[1].tunggakan)
+                .slice(0, 10);
+
+            list.innerHTML = sorted.length ? sorted.map((s, i) => `
                 <div class="company-item">
                     <div class="company-header">
                         <div class="company-name">${i+1}. ${s[0]}</div>
-                        <div style="font-size:10px; color:#27ae60; font-weight:bold;">${s[1].noa} NOA</div>
+                        <div class="risk-badge" style="background:${s[1].dpd > 90 ? '#e53e3e' : (s[1].dpd > 0 ? '#f6e05e' : '#27ae60')}">${s[1].dpd} DPD</div>
                     </div>
-                    <div style="font-size:10px; color:#666;">Rp ${(s[1].os/1e6).toFixed(1)} jt</div>
-                </div>`).join('');
+                    <div style="font-size:10px; color:#666;">Tunggakan: Rp ${s[1].tunggakan.toLocaleString('id-ID')}</div>
+                </div>`).join('') : "<p style='font-size:11px;'>Tidak ada data risk.</p>";
         }
 
-        loadCSV();
+        initDashboard();
     </script>
 </body>
 </html>
