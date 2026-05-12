@@ -44,7 +44,7 @@
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Sedang Memproses Kolom 'Company'...</div>
+        <div id="loading-text">Menyatukan Data Duplikat...</div>
     </div>
     
     <div class="header-title">MAP MONITORING PENCAIRAN FLEXI</div>
@@ -108,9 +108,7 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        const rmReference = {
-            // (Data RM disembunyikan untuk ringkas, sama seperti sebelumnya)
-        };
+        const rmReference = {}; 
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
@@ -123,6 +121,20 @@
             if (typeof v === 'number') return v;
             let res = parseFloat(String(v).replace(/[^0-9.-]+/g, ""));
             return isNaN(res) ? 0 : res;
+        }
+
+        // FUNGSI BARU: Membersihkan nama Instansi agar yang mirip bisa bersatu
+        function standardizeCompanyName(name) {
+            if (!name) return "ORGANIC/UMUM";
+            let clean = name.toString().toUpperCase();
+            // Hapus awalan PT, PT., atau akhiran TBK
+            clean = clean.replace(/^(PT\.|PT|PT |P\.T\.)\s+/g, '');
+            clean = clean.replace(/\s+(TBK|T\.BK)$/g, '');
+            // Hapus spasi ganda dan karakter aneh di ujung
+            clean = clean.trim().replace(/\s+/g, ' ');
+            
+            if (clean === "" || clean === "-" || clean === ".") return "ORGANIC/UMUM";
+            return clean;
         }
 
         async function loadCSV() {
@@ -142,23 +154,16 @@
                 if (response.ok) {
                     document.getElementById('file-info').innerText = "File: " + fileToTry;
                     const csvString = await response.text();
-                    
                     Papa.parse(csvString, {
                         header: true,
                         skipEmptyLines: 'greedy',
-                        complete: function(results) {
-                            if(results.data && results.data.length > 0) {
-                                renderDashboard(results.data);
-                            } else {
-                                showError("CSV Kosong!");
-                            }
-                        }
+                        complete: (results) => renderDashboard(results.data)
                     });
                 } else {
                     showError("File CSV tidak ditemukan!");
                 }
             } catch (e) {
-                showError("Error Load Data.");
+                showError("Gagal memuat data.");
             }
         }
 
@@ -172,7 +177,6 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-                // Norek & Cabang
                 let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID || item.NOREK || "";
                 if (!rawNorek) return;
 
@@ -185,24 +189,13 @@
                 if (code === "0311") code = "0310"; 
                 if (!geoMapping[code]) return;
 
-                // OS / Plafond
                 let amt = cleanVal(item.approved_amount || item.APPROVED_AMOUNT || item.PLAFOND || item.plafond || 0);
 
-                // Marketing
                 let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || item.UKER_MAPPING || geoMapping[code].name;
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
 
-                // --- FIX LOGIC COMPANY ---
-                // Mengambil dari kolom 'company' atau 'COMPANY'
-                let rawComp = item.company || item.COMPANY || "ORGANIC/UMUM";
-                
-                // Bersihkan data jika cuma strip atau kosong
-                let cleanComp = String(rawComp).trim();
-                if (!cleanComp || cleanComp === "-" || cleanComp === "." || cleanComp.toLowerCase() === "nan") {
-                    cleanComp = "ORGANIC/UMUM";
-                } else {
-                    cleanComp = cleanComp.toUpperCase(); // Biar tampilan konsisten bagus
-                }
+                // GUNAKAN STANDARDIZATION UNTUK COMPANY
+                let cleanComp = standardizeCompanyName(item.company || item.COMPANY);
 
                 if (!recap[code]) {
                     recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {}, companies: {} };
@@ -211,12 +204,10 @@
                 recap[code].os += amt;
                 recap[code].noa += 1;
                 
-                // Grouping per Marketing
                 if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
                 recap[code].marketings[mktName].os += amt;
                 recap[code].marketings[mktName].noa += 1;
 
-                // Grouping per Company
                 if (!recap[code].companies[cleanComp]) recap[code].companies[cleanComp] = { os: 0, noa: 0 };
                 recap[code].companies[cleanComp].os += amt;
                 recap[code].companies[cleanComp].noa += 1;
@@ -236,17 +227,13 @@
 
         function updateMap(recap) {
             map.eachLayer((layer) => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
-
             Object.keys(recap).forEach(c => {
                 const geo = geoMapping[c];
                 let radius = Math.max(8, Math.min(25, recap[c].os / 250000000));
-                
                 let marker = L.circleMarker([geo.lat, geo.lng], {
                     radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
-
                 marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
-                
                 marker.on('click', () => {
                     updateChart(recap[c].marketings, `Top RM - ${recap[c].name}`, false);
                     updateCompanyList(recap[c].companies); 
@@ -258,23 +245,15 @@
             const ctx = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
-
             let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, isBranchMode ? 5 : 10);
-
             let labels = sorted.map(x => isBranchMode ? x[1].name : x[0]);
             let osValues = sorted.map(x => x[1].os);
             let noaValues = sorted.map(x => x[1].noa);
-
             barChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{ 
-                        data: osValues, 
-                        backgroundColor: isBranchMode ? '#00529c' : '#27ae60', 
-                        borderRadius: 5,
-                        noa: noaValues 
-                    }]
+                    datasets: [{ data: osValues, backgroundColor: isBranchMode ? '#00529c' : '#27ae60', borderRadius: 5, noa: noaValues }]
                 },
                 options: { 
                     indexAxis: 'y', maintainAspectRatio: false, 
@@ -294,12 +273,7 @@
             const container = document.getElementById('company-info');
             const list = document.getElementById('company-list');
             container.style.display = 'block';
-
-            // Menampilkan top 10 instansi di cabang terpilih
-            const sorted = Object.entries(companyData)
-                .sort((a, b) => b[1].os - a[1].os)
-                .slice(0, 10);
-
+            const sorted = Object.entries(companyData).sort((a, b) => b[1].os - a[1].os).slice(0, 10);
             list.innerHTML = sorted.map((comp, i) => {
                 let osTxt = (comp[1].os >= 1e9) ? (comp[1].os / 1e9).toFixed(2) + ' M' : (comp[1].os / 1e6).toFixed(1) + ' jt';
                 return `
