@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Flexi Pro</title>
+    <title>Dashboard Flexi 2026 - Data Terkonsolidasi</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -15,66 +15,62 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 1000; font-weight: bold; font-size: 14px; border: 1px solid #00529c;
         }
         .sidebar {
-            position: absolute; top: 80px; right: 20px; width: 340px;
-            background: white; border-radius: 12px; padding: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 85vh; overflow-y: auto;
+            position: absolute; top: 80px; right: 20px; width: 360px;
+            background: white; border-radius: 12px; padding: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 88vh; overflow-y: auto;
         }
-        .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00529c; display: flex; flex-direction: column;}
-        .stat-card small { color: #666; font-size: 10px; margin-bottom: 3px; font-weight: bold; }
-        .stat-card div { font-weight: bold; font-size: 15px; color: #333; }
-        
-        #loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center;
-            align-items: center; z-index: 9999; font-weight: bold;
-        }
+        .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #00529c; }
+        .stat-card small { color: #666; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .stat-card div { font-weight: bold; font-size: 16px; color: #333; }
+        .chart-container { margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
+        .chart-label { font-size: 12px; font-weight: bold; color: #444; margin-bottom: 8px; display: block; border-left: 3px solid #00529c; padding-left: 8px; }
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
         .loader { border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #00529c; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        button.reset-btn { width: 100%; padding: 10px; font-size: 12px; cursor: pointer; background: #00529c; color: white; border: none; border-radius: 5px; margin-top: 15px; font-weight: bold; }
-
         .company-item { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-        .company-header { display: flex; justify-content: space-between; align-items: center; }
-        .company-name { font-weight: bold; font-size: 11px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
-        
-        /* Badge Risk Styling - Diperbaiki agar teks hitam & kontras */
         .risk-badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; color: #1a1a1a; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); }
+        button.reset-btn { width: 100%; padding: 10px; background: #00529c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Sinkronisasi Data Sales & Risk...</div>
+        <div id="loading-text">Memproses Data Flexi...</div>
     </div>
     
-    <div class="header-title">DASHBOARD MONITORING FLEXI</div>
+    <div class="header-title">STRATEGIC PERFORMANCE DASHBOARD 2026</div>
 
     <div class="sidebar">
-        <div style="display:flex; justify-content:space-between; gap:10px;">
+        <div style="display:flex; justify-content:space-between; gap:8px;">
             <div class="stat-card" style="flex:1;">
-                <small>TOTAL OS SALES</small>
+                <small>Total Sales (YTD)</small>
                 <div id="total-os">Rp 0</div>
             </div>
-            <div class="stat-card" style="border-left-color: #27ae60; flex:1;">
-                <small>TOTAL NOA</small>
+            <div class="stat-card" style="flex:1; border-left-color: #27ae60;">
+                <small>Total NOA</small>
                 <div id="total-noa">0</div>
             </div>
         </div>
-        
         <div class="stat-card" style="border-left-color: #e53e3e;">
-            <small>TOTAL TUNGGAKAN (RISK)</small>
+            <small>Total Tunggakan (Risk)</small>
             <div id="total-risk">Rp 0</div>
         </div>
+
+        <div class="chart-container">
+            <span class="chart-label">Tren Bulanan (Sales dalam M)</span>
+            <div style="height: 150px;"><canvas id="trendChart"></canvas></div>
+        </div>
         
-        <h4 id="chart-title" style="font-size: 13px; margin: 15px 0 10px; color: #333;">Top 5 Cabang (Sales)</h4>
-        <div style="height: 250px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
+        <div class="chart-container">
+            <span class="chart-label" id="bar-title">Top 5 Cabang (Sales)</span>
+            <div style="height: 180px;"><canvas id="barChart"></canvas></div>
+        </div>
         
         <div id="company-info" style="display: none;">
-            <h4 id="company-title" style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">INSTANSI BERISIKO (TUNGGAKAN)</h4>
+            <span class="chart-label">Instansi Berisiko</span>
             <div id="company-list"></div>
         </div>
-
         <button onclick="location.reload()" class="reset-btn">REFRESH DATA</button>
     </div>
 
@@ -85,7 +81,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
-        // --- DATA MAPPING CABANG ---
+        // --- MAPPING CABANG ---
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
             "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
@@ -112,7 +108,7 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        // --- DATA MAPPING RM ---
+        // --- MAPPING RM ---
         const rmReference = {
             "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
             "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
@@ -167,10 +163,9 @@
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
         
-        let barChartInstance = null;
-        let globalRecap = {};
+        let barChart = null, trendChart = null;
+        let globalRecap = {}, monthlyTrend = Array(12).fill(0);
 
-        // --- FUNGSI FORMAT RUPIAH CERDAS ---
         function formatRupiah(val) {
             if (val === 0) return "Rp 0";
             if (val >= 1e12) return "Rp " + (val / 1e12).toFixed(2) + " T";
@@ -179,59 +174,46 @@
             return "Rp " + val.toLocaleString('id-ID');
         }
 
-        function cleanVal(v) {
-            if (!v) return 0;
-            return parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0;
-        }
-
-        function standardizeCompanyName(name) {
-            if (!name) return "ORGANIC/UMUM";
-            return name.toString().toUpperCase()
-                .replace(/^(PT\.|PT|PT |P\.T\.)\s+/g, '')
-                .replace(/\s+(TBK|T\.BK)$/g, '')
-                .trim().replace(/\s+/g, ' ');
-        }
+        function cleanVal(v) { return v ? parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0 : 0; }
 
         function getUker(id) {
             if(!id) return null;
             let code = id.substring(0, 4);
-            if (!geoMapping[code]) {
-                let alt = "0" + id.substring(0, 3);
-                if (geoMapping[alt]) code = alt;
-            }
+            if (!geoMapping[code]) code = "0" + id.substring(0, 3);
             if (code === "1311") code = "0310"; 
             return geoMapping[code] ? code : null;
         }
 
-        async function initDashboard() {
+        async function loadData() {
             try {
-                const now = new Date();
-                const fileSales = `data_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}.csv`;
-                const fileRisk = `data_performance.csv`;
+                // MEMBACA SATU FILE UTAMA
+                const resSales = await fetch(`data_pencairan_2026.csv`);
+                const resRisk = await fetch(`data_performance.csv`);
 
-                const [resSales, resRisk] = await Promise.all([
-                    fetch(fileSales).catch(() => fetch(`data_${now.getFullYear()}${String(now.getMonth()).padStart(2, '0')}.csv`)),
-                    fetch(fileRisk).catch(() => null)
-                ]);
-
-                if (!resSales || !resSales.ok) throw new Error("File Sales (Pencairan) tidak ditemukan");
+                if (!resSales.ok) throw new Error("File data_pencairan_2026.csv tidak ditemukan");
                 
-                const salesText = await resSales.text();
-                const riskText = resRisk && resRisk.ok ? await resRisk.text() : "";
+                const salesData = Papa.parse(await resSales.text(), { header: true, skipEmptyLines: true }).data;
+                const riskData = resRisk.ok ? Papa.parse(await resRisk.text(), { header: true, skipEmptyLines: true }).data : [];
 
-                const salesData = Papa.parse(salesText, { header: true, skipEmptyLines: true }).data;
-                const riskData = riskText ? Papa.parse(riskText, { header: true, skipEmptyLines: true }).data : [];
+                salesData.forEach(d => {
+                    let dateStr = d.tanggal_pencairan || d.TANGGAL || "";
+                    if(dateStr) {
+                        let month = parseInt(dateStr.split('-')[1]); 
+                        if(month >= 1 && month <= 12) {
+                            monthlyTrend[month-1] += cleanVal(d.approved_amount || d.PLAFOND || 0);
+                        }
+                    }
+                });
 
-                processAllData(salesData, riskData);
+                processData(salesData, riskData);
             } catch (e) {
-                document.getElementById('loading-text').innerHTML = `<span style="color:red">${e.message}</span>`;
+                document.getElementById('loading-text').innerHTML = `<b style="color:red">${e.message}</b>`;
             }
         }
 
-        function processAllData(sales, risk) {
+        function processData(sales, risk) {
             let recap = {};
             let totalOS = 0, totalNOA = 0, totalRisk = 0;
-
             Object.keys(geoMapping).forEach(c => {
                 recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
             });
@@ -241,8 +223,7 @@
                 if (!code) return;
                 let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
                 let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
-                let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
-
+                let mktName = rmReference[rawMkt] || rawMkt;
                 recap[code].os += amt;
                 recap[code].noa += 1;
                 if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
@@ -257,8 +238,7 @@
                 if (!code) return;
                 let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
                 let dpd = parseInt(item.dpd || 0);
-                let comp = standardizeCompanyName(item.company || "ORGANIC");
-
+                let comp = (item.company || "ORGANIC").toUpperCase();
                 recap[code].tunggakan += tung;
                 recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
                 if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
@@ -275,109 +255,67 @@
             document.getElementById('loading-overlay').style.display = 'none';
 
             renderMarkers();
-            updateChart(recap, "Top 5 Cabang (Sales)", true);
+            renderTrendChart();
+            updateBarChart(recap, "Top 5 Cabang (Sales)", true);
         }
 
         function renderMarkers() {
-            map.eachLayer((layer) => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
             Object.keys(globalRecap).forEach(c => {
                 const d = globalRecap[c];
-                const geo = geoMapping[c];
                 if (d.os === 0 && d.tunggakan === 0) return;
-
                 let color = d.maxDpd > 90 ? "#e53e3e" : (d.maxDpd > 0 ? "#f6e05e" : "#27ae60");
-                let radius = Math.max(8, Math.min(25, d.os / 250000000));
-
-                let marker = L.circleMarker([geo.lat, geo.lng], {
-                    radius: radius, fillColor: color, color: "white", weight: 2, fillOpacity: 0.8
+                let marker = L.circleMarker([geoMapping[c].lat, geoMapping[c].lng], {
+                    radius: Math.max(8, Math.min(25, d.os / 250000000)),
+                    fillColor: color, color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
-
-                marker.bindPopup(`
-                    <div style="font-family: 'Roboto', sans-serif; min-width:150px;">
-                        <b style="font-size:14px; color:#00529c;">${d.name}</b><hr style="margin:5px 0;">
-                        <table style="width:100%; font-size:12px;">
-                            <tr><td>Sales</td><td>: <b>${formatRupiah(d.os)}</b></td></tr>
-                            <tr><td>NOA</td><td>: <b>${d.noa}</b></td></tr>
-                            <tr><td>Risk</td><td>: <b style="color:#e53e3e;">${formatRupiah(d.tunggakan)}</b></td></tr>
-                        </table>
-                    </div>
-                `);
-                
+                marker.bindPopup(`<b>${d.name}</b><hr>Sales: ${formatRupiah(d.os)}<br>NOA: ${d.noa}<br>Risk: ${formatRupiah(d.tunggakan)}`);
                 marker.on('click', () => {
-                    updateChart(d.marketings, `Top RM - ${d.name}`, false);
+                    updateBarChart(d.marketings, `Top RM - ${d.name}`, false);
                     updateCompanyRisk(d.companies);
                 });
             });
         }
 
-        function updateChart(sourceData, title, isBranch) {
-            const ctx = document.getElementById('barChart').getContext('2d');
-            if (barChartInstance) barChartInstance.destroy();
-            document.getElementById('chart-title').innerText = title;
-
-            let labels = [], osValues = [], noaValues = [];
-
-            if (isBranch) {
-                let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-                labels = sorted.map(x => x[1].name);
-                osValues = sorted.map(x => x[1].os);
-                noaValues = sorted.map(x => x[1].noa);
-            } else {
-                let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
-                labels = sorted.map(x => x[0]);
-                osValues = sorted.map(x => x[1].os);
-                noaValues = sorted.map(x => x[1].noa);
-            }
-            
-            barChartInstance = new Chart(ctx, {
-                type: 'bar',
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctx, {
+                type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: [{ data: osValues, backgroundColor: '#00529c', borderRadius: 5, noa: noaValues }]
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+                    datasets: [{ label: 'Sales (M)', data: monthlyTrend.map(v => v / 1e9), borderColor: '#00529c', backgroundColor: 'rgba(0,82,156,0.1)', fill: true, tension: 0.4 }]
                 },
-                options: { 
-                    indexAxis: 'y', maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.parsed.x;
-                                    let noa = context.dataset.noa[context.dataIndex];
-                                    return ` OS: ${formatRupiah(val)} | NOA: ${noa}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { x: { display: false }, y: { ticks: { font: { size: 9 } } } }
-                }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } } }
+            });
+        }
+
+        function updateBarChart(source, title, isBranch) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChart) barChart.destroy();
+            document.getElementById('bar-title').innerText = title;
+            let entries = isBranch ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
+            let sorted = entries.sort((a,b) => b[1] - a[1]).slice(0, 5);
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: sorted.map(x => x[0]), datasets: [{ data: sorted.map(x => x[1]), backgroundColor: '#00529c', borderRadius: 4, noa: sorted.map(x => x[2]) }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` } } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }
             });
         }
 
         function updateCompanyRisk(companies) {
-            const container = document.getElementById('company-info');
             const list = document.getElementById('company-list');
-            container.style.display = 'block';
-
-            const sorted = Object.entries(companies).sort((a,b) => b[1].tunggakan - a[1].tunggakan).slice(0, 10);
-
-            list.innerHTML = sorted.length ? sorted.map((s, i) => {
-                let color = s[1].dpd > 90 ? '#feb2b2' : (s[1].dpd > 0 ? '#faf089' : '#9ae6b4');
-                return `
+            document.getElementById('company-info').style.display = 'block';
+            const sorted = Object.entries(companies).sort((a,b) => b[1].tunggakan - a[1].tunggakan).slice(0, 5);
+            list.innerHTML = sorted.map(([name, d], i) => `
                 <div class="company-item">
-                    <div class="company-header">
-                        <div class="company-name">${i+1}. ${s[0]}</div>
-                        <div class="risk-badge" style="background:${color}">${s[1].dpd} DPD</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="company-name" style="font-size:11px; font-weight:bold;">${i+1}. ${name}</span>
+                        <span class="risk-badge" style="background:${d.dpd > 90 ? '#feb2b2' : (d.dpd > 0 ? '#faf089' : '#9ae6b4')}">${d.dpd} DPD</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:10px; color:#666; margin-top:3px;">
-                        <span>Tunggakan: <b>${formatRupiah(s[1].tunggakan)}</b></span>
-                        <span style="color:#00529c;">${s[1].noaRisk} NOA Macet</span>
-                    </div>
-                </div>`;
-            }).join('') : "<p style='font-size:11px;'>Tidak ada data risk (Semua Lancar).</p>";
+                    <div style="font-size:10px; color:#666; margin-top:2px;">Tunggakan: <b>${formatRupiah(d.tunggakan)}</b> | ${d.noaRisk} NOA</div>
+                </div>`).join('');
         }
 
-        initDashboard();
+        loadData();
     </script>
 </body>
 </html>
