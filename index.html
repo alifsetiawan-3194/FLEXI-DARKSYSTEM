@@ -227,7 +227,7 @@
                 let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
                 
                 // --- LOGIKA HARDCODE RM ---
-                let mktName = rmReference[rawMkt] || (rawMkt.length > 5 ? "RM LAINNYA ("+rawMkt+")" : rawMkt);
+                let mktName = rmReference[rawMkt] ;
 
                 recap[code].os += amt;
                 recap[code].noa += 1;
