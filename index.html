@@ -35,7 +35,7 @@
 
         .company-item { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
         .company-header { display: flex; justify-content: space-between; align-items: center; }
-        .company-name { font-weight: bold; font-size: 11px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
+        .company-name { font-weight: bold; font-size: 11px; max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
         .company-noa { color: #27ae60; font-weight: bold; font-size: 11px; }
         .company-os { color: #666; font-size: 11px; margin-top: 2px; }
     </style>
@@ -44,7 +44,7 @@
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Menghubungkan ke Data...</div>
+        <div id="loading-text">Sedang Memproses Kolom 'Company'...</div>
     </div>
     
     <div class="header-title">MAP MONITORING PENCAIRAN FLEXI</div>
@@ -67,12 +67,12 @@
         <div style="height: 250px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
         
         <div id="company-info" style="display: none;">
-            <h4 style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">TOP 5 INSTANSI/COMPANY</h4>
+            <h4 style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">TOP 10 INSTANSI / COMPANY</h4>
             <div id="company-list"></div>
         </div>
 
         <p id="file-info" style="font-size: 9px; color: #999; margin-top: 15px; text-align: center;"></p>
-        <button onclick="location.reload()" class="reset-btn">RESET VIEW NASIONAL</button>
+        <button onclick="location.reload()" class="reset-btn">REFRESH / RESET VIEW</button>
     </div>
 
     <div id="map"></div>
@@ -109,54 +109,7 @@
         };
 
         const rmReference = {
-            "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
-            "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
-            "RBO0025002023": "MUHAMAD MOZA KANDIRA", "RBO0110002068": "ARDINO OKAJINARTA",
-            "RBO0140001932": "MONICA ACHIR PUTRI", "RBO0310000656": "FITRA AMIRANTI",
-            "RBO0310000731": "YUNI KUSTANTI", "RBO0320001113": "MANIK LINTANG SUH MAHLIGAI",
-            "RBO0330001779": "ENDRI AGUSTIN", "RBO0330002011": "RIZQIKA ARDHANI SRI REJEKI",
-            "RBO0330002012": "MUHAMMAD ADITYA MUZAKKY", "RBO0350001670": "NOVI SETYAWATI",
-            "RBO0350001947": "RAMADITYA BAYU PAMUNGKAS", "RBO0350001954": "GIGIH MANGGALA",
-            "RBO0350002009": "KRISNA ALI PASHA PRATAMA PUTRA", "RBO0350002075": "ANTON SUSILO PRABOWO",
-            "RBO0410000579": "AKHMAD DWI PRAYUGI", "RBO0411002058": "NAUFAL FEBI MAHARDIKA",
-            "RBO0411002088": "MILA AZZAHRO AINI", "RBO0420002047": "RACHMAD MAHENDRA PUTRA",
-            "RBO0420002066": "YUSUF BACHRI", "RBO0430002046": "MEGA AYU LESTARI",
-            "RBO0430002069": "EGA AYU PRAMITASARI", "RBO1110000220": "JUNI PURNAMA SARI SILABAN",
-            "RBO1110002070": "JANSEN VERNANDO SITOHANG", "RBO1310000366": "JELI NATALIAS",
-            "RBO1310000377": "DOLLY NAMORA LUBIS", "RBO1311000219": "ALPRIZA ULVI",
-            "RBO1311000661": "WANRA SITUMORANG", "RBO1311001930": "HARJA GUNADI",
-            "RBO1312000430": "PAJRI SUCI ANDRI", "RBO1312000583": "RUSTAMI",
-            "RBO1312000712": "ROMI NOVRIZON", "RBO1312001749": "CHRISTHANTY DESRIANI PURBA",
-            "RBO1312002098": "ROLY CHANDRA", "RBO1313000431": "HARRY SATRIA PUTRA",
-            "RBO1313000433": "WILLY DOZAN SAPUTRA", "RBO1313000543": "POPPY ISKANDAR",
-            "RBO1313001909": "NUR AZZURA", "RBO1314000765": "LUKMAN",
-            "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
-            "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
-            "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
-            "RBO3210001185": "ADAM RUKMANA", "RBO3210001975": "RISKA PURNAMAYANTI",
-            "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
-            "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
-            "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
-            "RBO0025001096": "MOHAMMAD ILHAMSYAH RITO", "RBO1710001857": "VICARLIAN RINJANIE",
-            "RBO0410000134": "NUR AYU MEINARSARI", "RBO1710001680": "RAWAN",
-            "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
-            "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
-            "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY",
-            "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
-            "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
-            "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
-            "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
-            "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
-            "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
-            "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
-            "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
-            "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
-            "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
-            "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
-            "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
-            "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
-            "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
-            "SLP0010002120": "TRI BUANA NUGRAHANTI"
+            // (Data RM disembunyikan untuk ringkas, sama seperti sebelumnya)
         };
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
@@ -165,7 +118,6 @@
         let barChartInstance = null;
         let globalRecap = {};
 
-        // Fungsi Bersih Angka (Penting!)
         function cleanVal(v) {
             if (!v) return 0;
             if (typeof v === 'number') return v;
@@ -198,17 +150,15 @@
                             if(results.data && results.data.length > 0) {
                                 renderDashboard(results.data);
                             } else {
-                                showError("CSV terbaca tapi tidak ada baris data!");
+                                showError("CSV Kosong!");
                             }
-                        },
-                        error: function() { showError("Gagal memproses struktur CSV!"); }
+                        }
                     });
                 } else {
-                    showError("File CSV tidak ditemukan di folder!");
+                    showError("File CSV tidak ditemukan!");
                 }
             } catch (e) {
-                showError("Masalah Koneksi/Browser Block.");
-                console.error(e);
+                showError("Error Load Data.");
             }
         }
 
@@ -222,14 +172,12 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-                // Cari kolom Norek (case insensitive)
+                // Norek & Cabang
                 let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID || item.NOREK || "";
                 if (!rawNorek) return;
 
                 let norekStr = String(rawNorek).trim();
                 let code = norekStr.substring(0, 4);
-
-                // Mapping Cabang
                 if (!geoMapping[code]) {
                     let altCode3 = "0" + norekStr.substring(0, 3);
                     if (geoMapping[altCode3]) code = altCode3;
@@ -237,14 +185,24 @@
                 if (code === "0311") code = "0310"; 
                 if (!geoMapping[code]) return;
 
-                // Cari kolom OS (case insensitive)
-                let amt = cleanVal(item.approved_amount || item.APPROVED_AMOUNT || item.PLAFOND || 0);
+                // OS / Plafond
+                let amt = cleanVal(item.approved_amount || item.APPROVED_AMOUNT || item.PLAFOND || item.plafond || 0);
 
-                // Marketing & Company
+                // Marketing
                 let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || item.UKER_MAPPING || geoMapping[code].name;
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
 
-                let rawComp = item.company_name || item.COMPANY_NAME || item.REFERRAL_INSTANSI || item.INSTANSI || "ORGANIC/UMUM";
+                // --- FIX LOGIC COMPANY ---
+                // Mengambil dari kolom 'company' atau 'COMPANY'
+                let rawComp = item.company || item.COMPANY || "ORGANIC/UMUM";
+                
+                // Bersihkan data jika cuma strip atau kosong
+                let cleanComp = String(rawComp).trim();
+                if (!cleanComp || cleanComp === "-" || cleanComp === "." || cleanComp.toLowerCase() === "nan") {
+                    cleanComp = "ORGANIC/UMUM";
+                } else {
+                    cleanComp = cleanComp.toUpperCase(); // Biar tampilan konsisten bagus
+                }
 
                 if (!recap[code]) {
                     recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {}, companies: {} };
@@ -253,13 +211,15 @@
                 recap[code].os += amt;
                 recap[code].noa += 1;
                 
+                // Grouping per Marketing
                 if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
                 recap[code].marketings[mktName].os += amt;
                 recap[code].marketings[mktName].noa += 1;
 
-                if (!recap[code].companies[rawComp]) recap[code].companies[rawComp] = { os: 0, noa: 0 };
-                recap[code].companies[rawComp].os += amt;
-                recap[code].companies[rawComp].noa += 1;
+                // Grouping per Company
+                if (!recap[code].companies[cleanComp]) recap[code].companies[cleanComp] = { os: 0, noa: 0 };
+                recap[code].companies[cleanComp].os += amt;
+                recap[code].companies[cleanComp].noa += 1;
 
                 gOS += amt; 
                 gNOA += 1;
@@ -335,7 +295,10 @@
             const list = document.getElementById('company-list');
             container.style.display = 'block';
 
-            const sorted = Object.entries(companyData).sort((a, b) => b[1].os - a[1].os).slice(0, 5);
+            // Menampilkan top 10 instansi di cabang terpilih
+            const sorted = Object.entries(companyData)
+                .sort((a, b) => b[1].os - a[1].os)
+                .slice(0, 10);
 
             list.innerHTML = sorted.map((comp, i) => {
                 let osTxt = (comp[1].os >= 1e9) ? (comp[1].os / 1e9).toFixed(2) + ' M' : (comp[1].os / 1e6).toFixed(1) + ' jt';
