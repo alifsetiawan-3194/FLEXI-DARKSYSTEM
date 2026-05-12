@@ -123,48 +123,56 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-    let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
-    if (!rawNorek) return;
+                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+                if (!rawNorek) return;
 
-    let norekStr = String(rawNorek).trim();
-    let code = norekStr.substring(0, 4);
+                let norekStr = String(rawNorek).trim();
+                let code = norekStr.substring(0, 4);
 
-    // FIX: Redirect KCP Banyumanik (0311) ke CB Semarang (0310)
-    if (code === "1311") {
-        code = "0310";
-    }
+                // 1. Logika Perbaikan Kode (Nol Hilang)
+                if (!geoMapping[code]) {
+                    let altCode3 = "0" + norekStr.substring(0, 3);
+                    let altCode2 = "00" + norekStr.substring(0, 2);
 
-    // Logika perbaikan nol di depan yang sudah kita buat sebelumnya
-    if (!geoMapping[code]) {
-        let altCode3 = "0" + norekStr.substring(0, 3);
-        let altCode2 = "00" + norekStr.substring(0, 2);
+                    if (geoMapping[altCode3]) {
+                        code = altCode3;
+                    } else if (geoMapping[altCode2]) {
+                        code = altCode2;
+                    }
+                }
 
-        if (geoMapping[altCode3]) {
-            code = altCode3;
-        } else if (geoMapping[altCode2]) {
-            code = altCode2;
-        }
-        
-        // Cek lagi setelah perbaikan nol: jika ternyata hasilnya 0311, arahkan ke 0310
-        if (code === "0311") code = "0310";
-    }
+                // 2. REDIRECT: Banyumanik (0311) diarahkan ke Semarang (0310)
+                if (code === "0311" || code === "311") {
+                    code = "0310";
+                }
 
-    // Lanjutkan proses seperti biasa...
-    if (!geoMapping[code]) return;
-    
-    // ... sisa kode recap os dan noa ...
-});
+                // 3. Validasi Akhir
+                if (!geoMapping[code]) return;
+                
+                // 4. Inisialisasi Recap
+                if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+                
+                // 5. Hitung Nilai (PENTING: Bagian ini tadi hilang di kode lo)
+                let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
+                let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
+                
+                recap[code].os += amt;
+                recap[code].noa += 1;
+                gOS += amt; 
+                gNOA += 1;
+            });
 
+            // Update Angka di Sidebar
             document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
             document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
 
+            // Bersihkan dan Gambar Map
             map.eachLayer((layer) => {
                 if (layer instanceof L.CircleMarker) map.removeLayer(layer);
             });
 
             Object.keys(recap).forEach(c => {
                 const geo = geoMapping[c];
-                // Ukuran bubble disesuaikan (OS dibagi 100jt)
                 let radius = Math.max(8, Math.min(25, recap[c].os / 100000000));
                 
                 L.circleMarker([geo.lat, geo.lng], {
@@ -173,6 +181,7 @@
                 }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
             });
 
+            // Update Chart Top 5
             const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
             const ctx = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
