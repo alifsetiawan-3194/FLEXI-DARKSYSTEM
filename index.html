@@ -123,39 +123,51 @@
             let gOS = 0, gNOA = 0;
 
             data.forEach(item => {
-                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
-                if (!rawNorek) return;
+    let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+    if (!rawNorek) return;
 
-                let norekStr = String(rawNorek).trim();
-                let code = norekStr.substring(0, 4);
+    let norekStr = String(rawNorek).trim();
+    
+    // Ambil 4 digit awal asli
+    let code = norekStr.substring(0, 4);
 
-                // LOGIKA KRUSIAL: Jika kode 4 digit tidak terdaftar, coba tambahkan '0' di depan 3 digit awal
-                if (!geoMapping[code]) {
-                    let altCode = "0" + norekStr.substring(0, 3);
-                    if (geoMapping[altCode]) {
-                        code = altCode;
-                    } else {
-                        // Coba lagi pake uker_code kalo ada
-                        let ukerCol = String(item.uker_code || "").padStart(4, '0');
-                        if (geoMapping[ukerCol]) code = ukerCol;
-                    }
-                }
+    // LOGIKA PERBAIKAN UNTUK KODE YANG KEHILANGAN NOL (JAWA & JAKARTA)
+    if (!geoMapping[code]) {
+        // Kasus 1: Nol hilang di depan (3 digit jadi 4 digit, misal 310... jadi 0310)
+        let altCode3 = "0" + norekStr.substring(0, 3);
+        
+        // Kasus 2: Dua Nol hilang di depan (2 digit jadi 4 digit, misal 10... jadi 0010 atau 25... jadi 0025)
+        let altCode2 = "00" + norekStr.substring(0, 2);
 
-                if (!geoMapping[code]) {
-                    console.log("Mapping skip:", code);
-                    return;
-                }
-                
-                if (!recap[code]) recap[code] = { os: 0, noa: 0 };
-                
-                let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
-                let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
-                
-                recap[code].os += amt;
-                recap[code].noa += 1;
-                gOS += amt; 
-                gNOA += 1;
-            });
+        if (geoMapping[altCode3]) {
+            code = altCode3;
+        } else if (geoMapping[altCode2]) {
+            code = altCode2;
+        } else {
+            // Kasus 3: Cek kolom uker_mapping kalau ada kata kuncinya
+            let mappingStr = String(item.uker_mapping || "").toUpperCase();
+            if (mappingStr.includes("MENARA")) code = "0010";
+            else if (mappingStr.includes("WARUNG JATI")) code = "0020";
+            else if (mappingStr.includes("BEKASI")) code = "0025";
+        }
+    }
+
+    // Cek terakhir, kalau masih nggak ada di mapping, skip
+    if (!geoMapping[code]) {
+        console.warn("Skip: Kode tidak dikenal", code, "dari norek", norekStr);
+        return;
+    }
+    
+    if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+    
+    let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
+    let amt = parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
+    
+    recap[code].os += amt;
+    recap[code].noa += 1;
+    gOS += amt; 
+    gNOA += 1;
+});
 
             document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
             document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
