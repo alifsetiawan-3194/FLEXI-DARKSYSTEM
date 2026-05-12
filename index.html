@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Marketing Pro</title>
+    <title>Integrated Dashboard Sales & Risk</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -12,7 +12,7 @@
         .header-title {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             background: white; padding: 10px 25px; border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 1000; font-weight: bold; font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 1000; font-weight: bold; font-size: 14px; border: 1px solid #00529c;
         }
         .sidebar {
             position: absolute; top: 80px; right: 20px; width: 340px;
@@ -20,13 +20,13 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 85vh; overflow-y: auto;
         }
         .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00529c; display: flex; flex-direction: column;}
-        .stat-card small { color: #666; font-size: 11px; margin-bottom: 3px; }
-        .stat-card div { font-weight: bold; font-size: 16px; color: #333; }
+        .stat-card small { color: #666; font-size: 10px; margin-bottom: 3px; font-weight: bold; }
+        .stat-card div { font-weight: bold; font-size: 15px; color: #333; }
         
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center;
-            align-items: center; z-index: 9999; font-weight: bold; text-align: center; padding: 20px;
+            align-items: center; z-index: 9999; font-weight: bold;
         }
         .loader { border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #00529c; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -35,44 +35,40 @@
 
         .company-item { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
         .company-header { display: flex; justify-content: space-between; align-items: center; }
-        .company-name { font-weight: bold; font-size: 11px; max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
-        .company-noa { color: #27ae60; font-weight: bold; font-size: 11px; }
-        .company-os { color: #666; font-size: 11px; margin-top: 2px; }
+        .company-name { font-weight: bold; font-size: 11px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
+        .risk-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Menyatukan Data Duplikat...</div>
+        <div id="loading-text">Memproses Mapping RM & Cabang...</div>
     </div>
     
-    <div class="header-title">MAP MONITORING PENCAIRAN FLEXI</div>
+    <div class="header-title">SALES & RISK MONITORING DASHBOARD</div>
 
     <div class="sidebar">
         <div style="display:flex; justify-content:space-between; gap:10px;">
             <div class="stat-card" style="flex:1;">
-                <small>TOTAL OS</small>
+                <small>TOTAL PENCAIRAN</small>
                 <div id="total-os">Rp 0</div>
             </div>
-            <div class="stat-card" style="border-left-color: #27ae60; flex:1;">
+            <div class="stat-card" style="border-left-color: #e53e3e; flex:1;">
                 <small>TOTAL NOA</small>
                 <div id="total-noa">0</div>
             </div>
         </div>
         
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-        
-        <h4 id="chart-title" style="font-size: 13px; margin: 0 0 10px; color: #333;">Top 5 Cabang (Nasional)</h4>
+        <h4 id="chart-title" style="font-size: 13px; margin: 15px 0 10px; color: #333;">Top 5 Cabang</h4>
         <div style="height: 250px; margin-bottom: 20px;"><canvas id="barChart"></canvas></div>
         
         <div id="company-info" style="display: none;">
-            <h4 style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">TOP 10 INSTANSI / COMPANY</h4>
+            <h4 id="company-title" style="font-size: 12px; margin: 0 0 10px; color: #00529c; border-bottom: 2px solid #00529c; display: inline-block;">RANKING INSTANSI</h4>
             <div id="company-list"></div>
         </div>
 
-        <p id="file-info" style="font-size: 9px; color: #999; margin-top: 15px; text-align: center;"></p>
-        <button onclick="location.reload()" class="reset-btn">REFRESH / RESET VIEW</button>
+        <button onclick="location.reload()" class="reset-btn">REFRESH DATA</button>
     </div>
 
     <div id="map"></div>
@@ -82,6 +78,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
+        // --- DATA MAPPING CABANG ---
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
             "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
@@ -108,7 +105,57 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        const rmReference = {}; 
+        // --- DATA MAPPING RM ---
+        const rmReference = {
+            "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
+            "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
+            "RBO0025002023": "MUHAMAD MOZA KANDIRA", "RBO0110002068": "ARDINO OKAJINARTA",
+            "RBO0140001932": "MONICA ACHIR PUTRI", "RBO0310000656": "FITRA AMIRANTI",
+            "RBO0310000731": "YUNI KUSTANTI", "RBO0320001113": "MANIK LINTANG SUH MAHLIGAI",
+            "RBO0330001779": "ENDRI AGUSTIN", "RBO0330002011": "RIZQIKA ARDHANI SRI REJEKI",
+            "RBO0330002012": "MUHAMMAD ADITYA MUZAKKY", "RBO0350001670": "NOVI SETYAWATI",
+            "RBO0350001947": "RAMADITYA BAYU PAMUNGKAS", "RBO0350001954": "GIGIH MANGGALA",
+            "RBO0350002009": "KRISNA ALI PASHA PRATAMA PUTRA", "RBO0350002075": "ANTON SUSILO PRABOWO",
+            "RBO0410000579": "AKHMAD DWI PRAYUGI", "RBO0411002058": "NAUFAL FEBI MAHARDIKA",
+            "RBO0411002088": "MILA AZZAHRO AINI", "RBO0420002047": "RACHMAD MAHENDRA PUTRA",
+            "RBO0420002066": "YUSUF BACHRI", "RBO0430002046": "MEGA AYU LESTARI",
+            "RBO0430002069": "EGA AYU PRAMITASARI", "RBO1110000220": "JUNI PURNAMA SARI SILABAN",
+            "RBO1110002070": "JANSEN VERNANDO SITOHANG", "RBO1310000366": "JELI NATALIAS",
+            "RBO1310000377": "DOLLY NAMORA LUBIS", "RBO1311000219": "ALPRIZA ULVI",
+            "RBO1311000661": "WANRA SITUMORANG", "RBO1311001930": "HARJA GUNADI",
+            "RBO1312000430": "PAJRI SUCI ANDRI", "RBO1312000583": "RUSTAMI",
+            "RBO1312000712": "ROMI NOVRIZON", "RBO1312001749": "CHRISTHANTY DESRIANI PURBA",
+            "RBO1312002098": "ROLY CHANDRA", "RBO1313000431": "HARRY SATRIA PUTRA",
+            "RBO1313000433": "WILLY DOZAN SAPUTRA", "RBO1313000543": "POPPY ISKANDAR",
+            "RBO1313001909": "NUR AZZURA", "RBO1314000765": "LUKMAN",
+            "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
+            "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
+            "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
+            "RBO3210001185": "ADAM RUKMANA", "RBO3210001975": "RISKA PURNAMAYANTI",
+            "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
+            "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
+            "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
+            "RBO0025001096": "MOHAMMAD ILHAMSYAH RITO", "RBO1710001857": "VICARLIAN RINJANIE",
+            "RBO0410000134": "NUR AYU MEINARSARI", "RBO1710001680": "RAWAN",
+            "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
+            "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
+            "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY",
+            "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
+            "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
+            "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
+            "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
+            "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
+            "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
+            "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
+            "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
+            "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
+            "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
+            "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
+            "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
+            "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
+            "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
+            "SLP0010002120": "TRI BUANA NUGRAHANTI"
+        };
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
@@ -118,84 +165,69 @@
 
         function cleanVal(v) {
             if (!v) return 0;
-            if (typeof v === 'number') return v;
-            let res = parseFloat(String(v).replace(/[^0-9.-]+/g, ""));
-            return isNaN(res) ? 0 : res;
+            return parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0;
         }
 
-        // FUNGSI BARU: Membersihkan nama Instansi agar yang mirip bisa bersatu
         function standardizeCompanyName(name) {
             if (!name) return "ORGANIC/UMUM";
-            let clean = name.toString().toUpperCase();
-            // Hapus awalan PT, PT., atau akhiran TBK
-            clean = clean.replace(/^(PT\.|PT|PT |P\.T\.)\s+/g, '');
-            clean = clean.replace(/\s+(TBK|T\.BK)$/g, '');
-            // Hapus spasi ganda dan karakter aneh di ujung
-            clean = clean.trim().replace(/\s+/g, ' ');
-            
-            if (clean === "" || clean === "-" || clean === ".") return "ORGANIC/UMUM";
-            return clean;
+            let clean = name.toString().toUpperCase()
+                .replace(/^(PT\.|PT|PT |P\.T\.)\s+/g, '')
+                .replace(/\s+(TBK|T\.BK)$/g, '')
+                .trim().replace(/\s+/g, ' ');
+            return clean === "" || clean === "-" ? "ORGANIC/UMUM" : clean;
         }
 
         async function loadCSV() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            let fileToTry = `data_${year}${month}.csv`;
-            
             try {
+                const now = new Date();
+                const fileToTry = `data_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}.csv`;
                 let response = await fetch(fileToTry);
+                
                 if (!response.ok) {
-                    const lastMonth = String(now.getMonth()).padStart(2, '0'); 
-                    fileToTry = `data_${year}${lastMonth}.csv`;
-                    response = await fetch(fileToTry);
+                    response = await fetch(`data_${now.getFullYear()}${String(now.getMonth()).padStart(2, '0')}.csv`);
                 }
 
                 if (response.ok) {
-                    document.getElementById('file-info').innerText = "File: " + fileToTry;
                     const csvString = await response.text();
                     Papa.parse(csvString, {
-                        header: true,
-                        skipEmptyLines: 'greedy',
+                        header: true, skipEmptyLines: true,
                         complete: (results) => renderDashboard(results.data)
                     });
                 } else {
-                    showError("File CSV tidak ditemukan!");
+                    throw new Error("File CSV tidak ditemukan.");
                 }
             } catch (e) {
-                showError("Gagal memuat data.");
+                document.getElementById('loading-text').innerHTML = `<span style="color:red">${e.message}</span>`;
             }
-        }
-
-        function showError(msg) {
-            document.getElementById('loading-text').innerHTML = `<span style="color:red">${msg}</span>`;
-            document.querySelector('.loader').style.display = 'none';
         }
 
         function renderDashboard(data) {
             let recap = {};
-            let gOS = 0, gNOA = 0;
+            let totalOS = 0, totalNOA = 0;
 
             data.forEach(item => {
-                let rawNorek = item.loan_account_id || item.LOAN_ACCOUNT_ID || item.NOREK || "";
-                if (!rawNorek) return;
-
-                let norekStr = String(rawNorek).trim();
-                let code = norekStr.substring(0, 4);
+                let norek = item.loan_account_id || item.NOREK || "";
+                let code = norek.substring(0, 4);
                 if (!geoMapping[code]) {
-                    let altCode3 = "0" + norekStr.substring(0, 3);
-                    if (geoMapping[altCode3]) code = altCode3;
+                    let alt = "0" + norek.substring(0, 3);
+                    if (geoMapping[alt]) code = alt;
                 }
-                if (code === "0311") code = "0310"; 
+                
+                // Khusus handling 0311 diarahkan ke Semarang (0310) sesuai mapping lo
+                if (code === "1311") code = "0310"; 
                 if (!geoMapping[code]) return;
 
-                let amt = cleanVal(item.approved_amount || item.APPROVED_AMOUNT || item.PLAFOND || item.plafond || 0);
-
-                let rawMkt = item.final_marketing_name || item.FINAL_MARKETING_NAME || item.UKER_MAPPING || geoMapping[code].name;
+                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
+                let rawMkt = item.final_marketing_name || item.UKER_MAPPING || "Unknown";
+                
+                // --- LOGIKA MAPPING RM ---
                 let mktName = rmReference[rawMkt] ? rmReference[rawMkt] : rawMkt;
+                // Jika isinya masih kode aneh (tidak ada di reference), kita bersihkan
+                if (mktName.startsWith("RBO") || mktName.startsWith("SLP")) {
+                    if (!rmReference[mktName]) mktName = "RM " + geoMapping[code].name;
+                }
 
-                // GUNAKAN STANDARDIZATION UNTUK COMPANY
-                let cleanComp = standardizeCompanyName(item.company || item.COMPANY);
+                let comp = standardizeCompanyName(item.company || item.COMPANY);
 
                 if (!recap[code]) {
                     recap[code] = { name: geoMapping[code].name, os: 0, noa: 0, marketings: {}, companies: {} };
@@ -203,88 +235,85 @@
 
                 recap[code].os += amt;
                 recap[code].noa += 1;
+                recap[code].marketings[mktName] = (recap[code].marketings[mktName] || 0) + amt;
                 
-                if (!recap[code].marketings[mktName]) recap[code].marketings[mktName] = { os: 0, noa: 0 };
-                recap[code].marketings[mktName].os += amt;
-                recap[code].marketings[mktName].noa += 1;
+                if (!recap[code].companies[comp]) recap[code].companies[comp] = { os: 0, noa: 0 };
+                recap[code].companies[comp].os += amt;
+                recap[code].companies[comp].noa += 1;
 
-                if (!recap[code].companies[cleanComp]) recap[code].companies[cleanComp] = { os: 0, noa: 0 };
-                recap[code].companies[cleanComp].os += amt;
-                recap[code].companies[cleanComp].noa += 1;
-
-                gOS += amt; 
-                gNOA += 1;
+                totalOS += amt;
+                totalNOA += 1;
             });
 
             globalRecap = recap;
-            document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
-            document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
+            document.getElementById('total-os').innerText = "Rp " + (totalOS/1e9).toFixed(2) + " M";
+            document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
             document.getElementById('loading-overlay').style.display = 'none';
 
-            updateMap(recap);
-            updateChart(recap, "Top 5 Cabang (Nasional)", true);
+            updateMap();
+            updateChart(recap, "Top 5 Cabang", true);
         }
 
-        function updateMap(recap) {
-            map.eachLayer((layer) => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
-            Object.keys(recap).forEach(c => {
+        function updateMap() {
+            Object.keys(globalRecap).forEach(c => {
                 const geo = geoMapping[c];
-                let radius = Math.max(8, Math.min(25, recap[c].os / 250000000));
+                const d = globalRecap[c];
+                let radius = Math.max(8, Math.min(25, d.os / 250000000));
+                
                 let marker = L.circleMarker([geo.lat, geo.lng], {
                     radius: radius, fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
                 }).addTo(map);
-                marker.bindPopup(`<b>${recap[c].name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
+
+                marker.bindPopup(`<b>${d.name}</b><br>OS: Rp ${(d.os/1e6).toFixed(1)} jt<br>NOA: ${d.noa}`);
                 marker.on('click', () => {
-                    updateChart(recap[c].marketings, `Top RM - ${recap[c].name}`, false);
-                    updateCompanyList(recap[c].companies); 
+                    updateChart(d.marketings, `Top RM - ${d.name}`, false);
+                    updateCompanyList(d.companies);
                 });
             });
         }
 
-        function updateChart(sourceData, title, isBranchMode) {
+        function updateChart(sourceData, title, isBranch) {
             const ctx = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
             document.getElementById('chart-title').innerText = title;
-            let sorted = Object.entries(sourceData).sort((a,b) => b[1].os - a[1].os).slice(0, isBranchMode ? 5 : 10);
-            let labels = sorted.map(x => isBranchMode ? x[1].name : x[0]);
-            let osValues = sorted.map(x => x[1].os);
-            let noaValues = sorted.map(x => x[1].noa);
+
+            let dataEntries = isBranch 
+                ? Object.entries(sourceData).map(x => [x[1].name, x[1].os])
+                : Object.entries(sourceData);
+
+            let sorted = dataEntries.sort((a,b) => b[1] - a[1]).slice(0, 10);
+            
             barChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{ data: osValues, backgroundColor: isBranchMode ? '#00529c' : '#27ae60', borderRadius: 5, noa: noaValues }]
+                    labels: sorted.map(x => x[0]),
+                    datasets: [{ data: sorted.map(x => x[1]), backgroundColor: isBranch ? '#00529c' : '#27ae60', borderRadius: 5 }]
                 },
                 options: { 
                     indexAxis: 'y', maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: (ctx) => `OS: Rp ${ctx.parsed.x.toLocaleString('id-ID')} | NOA: ${ctx.dataset.noa[ctx.dataIndex]}` } }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: { 
-                        x: { ticks: { callback: v => (v >= 1e9) ? (v/1e9).toFixed(1) + ' M' : (v/1e6).toFixed(0) + ' jt' } },
+                        x: { ticks: { callback: v => (v/1e6).toFixed(0) + 'jt' } },
                         y: { ticks: { font: { size: 9 } } }
                     }
                 }
             });
         }
 
-        function updateCompanyList(companyData) {
+        function updateCompanyList(companies) {
             const container = document.getElementById('company-info');
             const list = document.getElementById('company-list');
             container.style.display = 'block';
-            const sorted = Object.entries(companyData).sort((a, b) => b[1].os - a[1].os).slice(0, 10);
-            list.innerHTML = sorted.map((comp, i) => {
-                let osTxt = (comp[1].os >= 1e9) ? (comp[1].os / 1e9).toFixed(2) + ' M' : (comp[1].os / 1e6).toFixed(1) + ' jt';
-                return `
+
+            const sorted = Object.entries(companies).sort((a,b) => b[1].os - a[1].os).slice(0, 10);
+            list.innerHTML = sorted.map((s, i) => `
                 <div class="company-item">
                     <div class="company-header">
-                        <div class="company-name">${i + 1}. ${comp[0]}</div>
-                        <div class="company-noa">${comp[1].noa} NOA</div>
+                        <div class="company-name">${i+1}. ${s[0]}</div>
+                        <div style="font-size:10px; color:#27ae60; font-weight:bold;">${s[1].noa} NOA</div>
                     </div>
-                    <div class="company-os">Rp ${osTxt}</div>
-                </div>`;
-            }).join('');
+                    <div style="font-size:10px; color:#666;">Rp ${(s[1].os/1e6).toFixed(1)} jt</div>
+                </div>`).join('');
         }
 
         loadCSV();
