@@ -131,28 +131,39 @@ function renderDashboard(data) {
     let gOS = 0, gNOA = 0;
 
     data.forEach(item => {
-        // 1. Ambil kode uker (Cari di uker_code, atau ambil 4 digit awal loan_account_id)
-        let code = item.uker_code || item.UKER_CODE;
-        
-        if (!code && (item.loan_account_id || item.LOAN_ACCOUNT_ID)) {
-            const account = String(item.loan_account_id || item.LOAN_ACCOUNT_ID);
-            code = account.substring(0, 4); // Ambil 4 digit awal norek
-        }
+    // Ambil norek, pastikan jadi string
+    let norek = item.loan_account_id || item.LOAN_ACCOUNT_ID;
+    if (!norek) return;
 
-        if (!code || !geoMapping[code]) return;
-        
-        if (!recap[code]) recap[code] = { os: 0, noa: 0 };
-        
-        // 2. Bersihkan approved_amount dari koma atau karakter lain
-        let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || 0;
-        let amt = String(rawAmount).replace(/,/g, ''); // Hapus koma
-        amt = parseFloat(amt) || 0;
-        
-        recap[code].os += amt;
-        recap[code].noa += 1;
-        gOS += amt; 
-        gNOA += 1;
-    });
+    // Ambil 4 digit awal. 
+    // Jika angka nol didepan hilang (misal jadi 310), kita tambahin lagi biar jadi 0310
+    let code = String(norek).substring(0, 4);
+    if (code.length === 3) code = "0" + code; 
+    
+    // Jika masih gagal (misal kodenya geser), coba ambil dari uker_code jika ada
+    if (!geoMapping[code]) {
+        let altCode = String(item.uker_code || "").padStart(4, '0');
+        if (geoMapping[altCode]) code = altCode;
+    }
+
+    // Jika kode tetap tidak ada di mapping, abaikan baris ini
+    if (!geoMapping[code]) {
+        console.log("Kode tidak terdaftar di mapping:", code);
+        return;
+    }
+    
+    if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+    
+    // Bersihkan angka dari koma dan spasi
+    let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || "0";
+    let cleanAmount = String(rawAmount).replace(/,/g, '').trim(); 
+    let amt = parseFloat(cleanAmount) || 0;
+    
+    recap[code].os += amt;
+    recap[code].noa += 1;
+    gOS += amt; 
+    gNOA += 1;
+});
 
     // Update Angka di Sidebar
     document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
