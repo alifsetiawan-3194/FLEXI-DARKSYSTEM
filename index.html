@@ -126,62 +126,65 @@
             }
         }
 
-        function renderDashboard(data) {
-            let recap = {};
-            let gOS = 0, gNOA = 0;
+function renderDashboard(data) {
+    let recap = {};
+    let gOS = 0, gNOA = 0;
 
-            data.forEach(item => {
-                // Pake uker_code hasil query SQL lo biar lebih akurat
-                const code = item.uker_code ? String(item.uker_code).padStart(4, '0') : 
-                             (item.brdesc ? String(item.brdesc).substring(0, 4) : null);
-                
-                if (!code || !geoMapping[code]) return;
-                
-                if (!recap[code]) recap[code] = { os: 0, noa: 0 };
-                
-                let amt = String(item.approved_amount).replace(/,/g, '');
-                amt = parseFloat(amt) || 0;
-                
-                recap[code].os += amt;
-                recap[code].noa += 1;
-                gOS += amt; gNOA += 1;
-            });
-
-            document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
-            document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
-
-            // Hapus marker lama sebelum gambar baru
-            map.eachLayer((layer) => {
-                if (layer instanceof L.CircleMarker) map.removeLayer(layer);
-            });
-
-            Object.keys(recap).forEach(c => {
-                const geo = geoMapping[c];
-                L.circleMarker([geo.lat, geo.lng], {
-                    radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
-                    fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
-                }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString()}<br>NOA: ${recap[c].noa}`);
-            });
-
-            // Handle Chart (Destroy yang lama biar ga error)
-            const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
-            const ctx = document.getElementById('barChart').getContext('2d');
-            
-            if (barChartInstance) barChartInstance.destroy();
-            
-            barChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: top5.map(x => geoMapping[x[0]].name),
-                    datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c', borderRadius: 5 }]
-                },
-                options: { 
-                    indexAxis: 'y', 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } } 
-                }
-            });
+    data.forEach(item => {
+        // 1. Ambil kode uker (Cari di uker_code, atau ambil 4 digit awal loan_account_id)
+        let code = item.uker_code || item.UKER_CODE;
+        
+        if (!code && (item.loan_account_id || item.LOAN_ACCOUNT_ID)) {
+            const account = String(item.loan_account_id || item.LOAN_ACCOUNT_ID);
+            code = account.substring(0, 4); // Ambil 4 digit awal norek
         }
+
+        if (!code || !geoMapping[code]) return;
+        
+        if (!recap[code]) recap[code] = { os: 0, noa: 0 };
+        
+        // 2. Bersihkan approved_amount dari koma atau karakter lain
+        let rawAmount = item.approved_amount || item.APPROVED_AMOUNT || 0;
+        let amt = String(rawAmount).replace(/,/g, ''); // Hapus koma
+        amt = parseFloat(amt) || 0;
+        
+        recap[code].os += amt;
+        recap[code].noa += 1;
+        gOS += amt; 
+        gNOA += 1;
+    });
+
+    // Update Angka di Sidebar
+    document.getElementById('total-os').innerText = "Rp " + gOS.toLocaleString('id-ID');
+    document.getElementById('total-noa').innerText = gNOA.toLocaleString('id-ID');
+
+    // Hapus marker lama
+    map.eachLayer((layer) => {
+        if (layer instanceof L.CircleMarker) map.removeLayer(layer);
+    });
+
+    // Gambar ulang titik di peta
+    Object.keys(recap).forEach(c => {
+        const geo = geoMapping[c];
+        L.circleMarker([geo.lat, geo.lng], {
+            radius: Math.max(8, Math.min(25, recap[c].os / 100000000)),
+            fillColor: "#00529c", color: "white", weight: 2, fillOpacity: 0.8
+        }).addTo(map).bindPopup(`<b>${geo.name}</b><br>OS: Rp ${recap[c].os.toLocaleString('id-ID')}<br>NOA: ${recap[c].noa}`);
+    });
+
+    // Update Chart
+    const top5 = Object.entries(recap).sort((a,b) => b[1].os - a[1].os).slice(0, 5);
+    const ctx = document.getElementById('barChart').getContext('2d');
+    if (barChartInstance) barChartInstance.destroy();
+    barChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: top5.map(x => geoMapping[x[0]].name),
+            datasets: [{ data: top5.map(x => x[1].os), backgroundColor: '#00529c', borderRadius: 5 }]
+        },
+        options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
 
         loadCSV();
     </script>
