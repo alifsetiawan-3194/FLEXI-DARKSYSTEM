@@ -183,54 +183,86 @@
         document.getElementById('filter-month').addEventListener('change', applyFilters);
 
         function processData(sales, risk) {
-            let recap = {};
-            let totalOS = 0, totalNOA = 0, totalRisk = 0;
-            let mTrend = Array(12).fill(0);
+    let recap = {};
+    let totalOS = 0, totalNOA = 0, totalRisk = 0;
+    let mTrend = Array(12).fill(0);
 
-            Object.keys(geoMapping).forEach(c => {
-                recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
-            });
+    // 1. Inisialisasi struktur data
+    Object.keys(geoMapping).forEach(c => {
+        recap[c] = { 
+            name: geoMapping[c].name, 
+            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+            marketings: {}, companies: {} 
+        };
+    });
 
-            sales.forEach(d => {
-                let code = getUker(d.loan_account_id || d.NOREK);
-                let amt = cleanVal(d.approved_amount || d.PLAFOND);
-                let mkt = (d.final_marketing_name || "RM").toUpperCase();
-                let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
+    // 2. Olah Data Sales (Pencairan)
+    sales.forEach(d => {
+        let code = getUker(d.loan_account_id || d.NOREK);
+        let amt = cleanVal(d.approved_amount || d.PLAFOND);
+        let mkt = (d.final_marketing_name || "RM").toUpperCase().trim();
+        let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
 
-                recap[code].os += amt;
-                recap[code].noa += 1;
-                if (!recap[code].marketings[mkt]) recap[code].marketings[mkt] = { os: 0 };
-                recap[code].marketings[mkt].os += amt;
-                totalOS += amt;
-                totalNOA += 1;
-                if(month) mTrend[month-1] += amt;
-            });
+        recap[code].os += amt;
+        recap[code].noa += 1;
+        if (!recap[code].marketings[mkt]) recap[code].marketings[mkt] = { os: 0 };
+        recap[code].marketings[mkt].os += amt;
+        
+        totalOS += amt;
+        totalNOA += 1;
+        if(month) mTrend[month-1] += amt;
+    });
 
-            risk.forEach(d => {
-                let code = getUker(d.loan_account_id || d.NOREK);
-                let tung = cleanVal(d.total_tunggakan || d.BAKI_DEBET);
-                let dpd = parseInt(d.dpd || 0);
-                let comp = (d.company || "ORGANIC").toUpperCase().trim();
+    // 3. Olah Data Risk (Performance) + PEMBERSIH DUPLIKAT
+    risk.forEach(item => {
+        let code = getUker(item.loan_account_id || item.NOREK);
+        if (recap[code]) {
+            let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET);
+            let dpd = parseInt(item.dpd || 0);
+            
+            // --- LOGIC PEMBERSIH / NORMALISASI NAMA ---
+            let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
+            let comp = rawComp;
 
-                recap[code].tunggakan += tung;
-                recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-                if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0 };
-                recap[code].companies[comp].tunggakan += tung;
-                recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-                totalRisk += tung;
-            });
+            if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) {
+                comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+            } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
+                comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+            } else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) {
+                comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
+            } else if (rawComp.includes("PRIMAC")) {
+                comp = "PT. PRIMAC PERKASA INDONESIA";
+            } else if (rawComp.includes("PKSS")) {
+                comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
+            }
+            // ------------------------------------------
 
-            globalRecap = recap;
-            document.getElementById('total-os').innerText = formatRupiah(totalOS);
-            document.getElementById('total-noa').innerText = totalNOA;
-            document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
-            document.getElementById('loading-overlay').style.display = 'none';
+            recap[code].tunggakan += tung;
+            recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
 
-            renderMarkers();
-            renderRiskAreas();
-            renderTrendChart(mTrend);
-            updateBarChart(recap, "Top 3 Cabang (Sales)", true);
+            if (!recap[code].companies[comp]) {
+                recap[code].companies[comp] = { tunggakan: 0, dpd: 0 };
+            }
+            recap[code].companies[comp].tunggakan += tung;
+            recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+            totalRisk += tung;
         }
+    });
+
+    globalRecap = recap;
+
+    // 4. Update Angka di Sidebar
+    document.getElementById('total-os').innerText = formatRupiah(totalOS);
+    document.getElementById('total-noa').innerText = totalNOA;
+    document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
+    document.getElementById('loading-overlay').style.display = 'none';
+
+    // 5. Gambar Ulang Visual
+    renderMarkers();
+    renderRiskAreas();
+    renderTrendChart(mTrend);
+    updateBarChart(recap, "Top 3 Cabang (Sales)", true);
+}
 
         function renderMarkers() {
             markersLayer.clearLayers();
