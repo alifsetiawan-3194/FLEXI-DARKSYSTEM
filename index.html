@@ -182,92 +182,74 @@
 
         document.getElementById('filter-month').addEventListener('change', applyFilters);
 
-        function processData(sales, risk) {
+  let nationalCompanyStats = {}; 
+
+function processData(sales, risk) {
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     let mTrend = Array(12).fill(0);
+    nationalCompanyStats = {}; // Reset setiap kali filter berubah
 
-    // 1. Inisialisasi struktur data (Gunakan geoMapping sebagai dasar)
     Object.keys(geoMapping).forEach(c => {
-        recap[c] = { 
-            name: geoMapping[c].name, 
-            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-            marketings: {}, companies: {} 
-        };
+        recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
     });
 
-    // 2. Olah Data Sales (Pencairan)
+    // Olah Sales
     sales.forEach(d => {
         let code = getUker(d.loan_account_id || d.NOREK);
-        // Jika cabang tidak terdaftar, masukkan ke Menara Brilian (0010) biar data gak hilang
         if (!recap[code]) code = "0010";
-
         let amt = cleanVal(d.approved_amount || d.PLAFOND);
-        let mkt = (d.final_marketing_name || "RM").toUpperCase().trim();
         let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
-
         recap[code].os += amt;
-        recap[code].noa += 1; // NOA dari sisi pencairan baru
-        
-        if (!recap[code].marketings[mkt]) recap[code].marketings[mkt] = { os: 0 };
-        recap[code].marketings[mkt].os += amt;
-        
+        recap[code].noa += 1;
         totalOS += amt;
         totalNOA += 1;
         if(month) mTrend[month-1] += amt;
     });
 
-    // 3. Olah Data Risk (Performance) - Di sini NOA IWIP yang besar biasanya ngumpul
+    // Olah Risk & Hitung Agregat Nasional
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK);
-        if (!recap[code]) code = "0010"; 
-
+        if (!recap[code]) code = "0010";
         let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET);
         let dpd = parseInt(item.dpd || 0);
         
-        // --- NORMALISASI NAMA (Anti Duplikat) ---
+        // NORMALISASI NAMA
         let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
         let comp = rawComp;
+        if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+        else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+        else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
+        else if (rawComp.includes("PRIMAC")) comp = "PT. PRIMAC PERKASA INDONESIA";
+        else if (rawComp.includes("PKSS")) comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
 
-        if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) {
-            comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-        } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
-            comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
-        } else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) {
-            comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
-        } else if (rawComp.includes("PRIMAC")) {
-            comp = "PT. PRIMAC PERKASA INDONESIA";
-        } else if (rawComp.includes("PKSS")) {
-            comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
-        }
-
-        recap[code].tunggakan += tung;
-        recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-
-        // Update data per instansi
-        if (!recap[code].companies[comp]) {
-            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-        }
+        // Isi Data Cabang
+        if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
         recap[code].companies[comp].tunggakan += tung;
         recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-        recap[code].companies[comp].noaRisk += 1; // Menghitung NOA dari file Risk
-        
+        recap[code].companies[comp].noaRisk += 1;
+
+        // ISI DATA NASIONAL (Untuk Aura Peta & Sidebar Top 10)
+        if (!nationalCompanyStats[comp]) nationalCompanyStats[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+        nationalCompanyStats[comp].tunggakan += tung;
+        nationalCompanyStats[comp].dpd = Math.max(nationalCompanyStats[comp].dpd, dpd);
+        nationalCompanyStats[comp].noaRisk += 1;
+
+        recap[code].tunggakan += tung;
         totalRisk += tung;
     });
 
     globalRecap = recap;
-
-    // 4. Update Angka di Sidebar
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
-    document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID'); // NOA Sales
+    document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
     document.getElementById('loading-overlay').style.display = 'none';
 
-    // 5. Render ulang visual
     renderMarkers();
-    renderRiskAreas();
+    renderRiskAreas(); // Sekarang pake data nationalCompanyStats
     renderTrendChart(mTrend);
     updateBarChart(recap, "Top 3 Cabang (Sales)", true);
+    updateCompanyRisk(nationalCompanyStats); // Tampilkan Top 10 Nasional di awal
 }
 
         function renderMarkers() {
@@ -289,38 +271,19 @@
 
 function renderRiskAreas() {
     riskAreasLayer.clearLayers();
-    
-    // 1. Kumpulkan total data per instansi dari semua cabang
-    let aggregateComps = {};
-    Object.values(globalRecap).forEach(uker => {
-        Object.entries(uker.companies).forEach(([name, data]) => {
-            if (!aggregateComps[name]) {
-                aggregateComps[name] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-            }
-            aggregateComps[name].tunggakan += data.tunggakan;
-            aggregateComps[name].noaRisk += data.noaRisk;
-            aggregateComps[name].dpd = Math.max(aggregateComps[name].dpd, data.dpd);
-        });
-    });
-
-    // 2. Gambar Aura berdasarkan data agregat (Nasional)
-    Object.entries(aggregateComps).forEach(([name, data]) => {
+    Object.entries(nationalCompanyStats).forEach(([name, data]) => {
         if (companyLocations[name] && data.noaRisk > 0) {
             const loc = companyLocations[name];
             const colorAura = data.dpd > 90 ? '#e53e3e' : '#ecc94b';
             
             L.circle([loc.lat, loc.lng], {
-                color: colorAura,
-                fillColor: colorAura,
-                fillOpacity: 0.2,
-                radius: 120000 // Radius diperbesar jadi 120km biar jelas
+                color: colorAura, fillColor: colorAura, fillOpacity: 0.2, radius: 100000
             }).addTo(riskAreasLayer)
               .bindPopup(`
-                <div style="font-family:sans-serif;">
-                    <b>${name}</b><br/>
-                    <hr>
-                    Total NOA: <b>${data.noaRisk}</b><br/>
-                    Max DPD: <span style="color:red">${data.dpd} Hari</span><br/>
+                <div style="font-family:sans-serif; min-width:150px;">
+                    <b style="color:#00529c">${name}</b><br><hr>
+                    Total NOA Berisiko: <b>${data.noaRisk.toLocaleString('id-ID')}</b><br>
+                    Status Terburuk: <span style="color:red">${data.dpd} Hari</span><br>
                     Total Tunggakan: <b>${formatRupiah(data.tunggakan)}</b>
                 </div>
               `);
@@ -362,7 +325,7 @@ function renderRiskAreas() {
     const sorted = Object.entries(comps)
         .filter(([n, d]) => d.noaRisk > 0)
         .sort((a, b) => b[1].tunggakan - a[1].tunggakan)
-        .slice(0, 10); // LIMIT 10 INSTANSI
+        .slice(0, 5); // LIMIT 10 INSTANSI
 
     if (sorted.length === 0) {
         list.innerHTML = `<div style="font-size:11px; color:green; padding:10px;">Tidak ada data risiko terdeteksi.</div>`;
