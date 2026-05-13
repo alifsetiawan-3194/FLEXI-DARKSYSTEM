@@ -273,38 +273,58 @@ function getUker(id) {
         }
 
         function updateBarChart(source, title, isBranch) {
-            const ctx = document.getElementById('barChart').getContext('2d');
-            if (barChart) barChart.destroy();
-            document.getElementById('bar-title').innerText = title;
-            
-            let entries = isBranch 
-                ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) 
-                : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
-            
-            let sorted = entries.sort((a,b) => b[1] - a[1]).slice(0, 5);
-            
-            barChart = new Chart(ctx, {
-                type: 'bar',
-                data: { 
-                    labels: sorted.map(x => x[0]), 
-                    datasets: [{ 
-                        data: sorted.map(x => x[1]), 
-                        backgroundColor: '#00529c', 
-                        borderRadius: 4, 
-                        noa: sorted.map(x => x[2]) 
-                    }] 
-                },
-                options: { 
-                    indexAxis: 'y', 
-                    maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false }, 
-                        tooltip: { callbacks: { label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` } } 
-                    }, 
-                    scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } 
-                }
-            });
+    const ctx = document.getElementById('barChart').getContext('2d');
+    if (barChart) barChart.destroy();
+    document.getElementById('bar-title').innerText = title;
+    
+    // 1. Ambil semua data dan pastikan tidak ada OS yang 0 atau undefined
+    let entries = isBranch 
+        ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) 
+        : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
+    
+    // 2. Filter hanya yang punya OS > 0 agar baris kosong tidak ikut tampil
+    let filtered = entries.filter(x => x[1] > 0);
+    
+    // 3. Sort dari yang terbesar dan POTONG secara paksa jadi 3 saja
+    let sorted = filtered.sort((a, b) => b[1] - a[1]).slice(0, 3);
+    
+    barChart = new Chart(ctx, {
+        type: 'bar',
+        data: { 
+            labels: sorted.map(x => x[0]), 
+            datasets: [{ 
+                data: sorted.map(x => x[1]), 
+                backgroundColor: '#00529c', 
+                borderRadius: 4, 
+                noa: sorted.map(x => x[2]) 
+            }] 
+        },
+        options: { 
+            indexAxis: 'y', 
+            maintainAspectRatio: false, 
+            layout: {
+                padding: { left: 0, right: 20, top: 0, bottom: 0 }
+            },
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    callbacks: { 
+                        label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` 
+                    } 
+                } 
+            }, 
+            scales: { 
+                x: { display: false }, 
+                y: { 
+                    ticks: { 
+                        font: { size: 10, weight: 'bold' },
+                        autoSkip: false // Paksa semua label muncul tanpa skip
+                    } 
+                } 
+            } 
         }
+    });
+}
 
         function updateCompanyRisk(companies) {
             const list = document.getElementById('company-list');
