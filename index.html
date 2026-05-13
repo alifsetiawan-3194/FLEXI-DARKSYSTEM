@@ -187,7 +187,7 @@
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     let mTrend = Array(12).fill(0);
 
-    // 1. Inisialisasi struktur data
+    // 1. Inisialisasi struktur data (Gunakan geoMapping sebagai dasar)
     Object.keys(geoMapping).forEach(c => {
         recap[c] = { 
             name: geoMapping[c].name, 
@@ -199,12 +199,16 @@
     // 2. Olah Data Sales (Pencairan)
     sales.forEach(d => {
         let code = getUker(d.loan_account_id || d.NOREK);
+        // Jika cabang tidak terdaftar, masukkan ke Menara Brilian (0010) biar data gak hilang
+        if (!recap[code]) code = "0010";
+
         let amt = cleanVal(d.approved_amount || d.PLAFOND);
         let mkt = (d.final_marketing_name || "RM").toUpperCase().trim();
         let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
 
         recap[code].os += amt;
-        recap[code].noa += 1;
+        recap[code].noa += 1; // NOA dari sisi pencairan baru
+        
         if (!recap[code].marketings[mkt]) recap[code].marketings[mkt] = { os: 0 };
         recap[code].marketings[mkt].os += amt;
         
@@ -213,51 +217,53 @@
         if(month) mTrend[month-1] += amt;
     });
 
-    // 3. Olah Data Risk (Performance) + PEMBERSIH DUPLIKAT
+    // 3. Olah Data Risk (Performance) - Di sini NOA IWIP yang besar biasanya ngumpul
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK);
-        if (recap[code]) {
-            let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET);
-            let dpd = parseInt(item.dpd || 0);
-            
-            // --- LOGIC PEMBERSIH / NORMALISASI NAMA ---
-            let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
-            let comp = rawComp;
+        if (!recap[code]) code = "0010"; 
 
-            if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) {
-                comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-            } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
-                comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
-            } else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) {
-                comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
-            } else if (rawComp.includes("PRIMAC")) {
-                comp = "PT. PRIMAC PERKASA INDONESIA";
-            } else if (rawComp.includes("PKSS")) {
-                comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
-            }
-            // ------------------------------------------
+        let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET);
+        let dpd = parseInt(item.dpd || 0);
+        
+        // --- NORMALISASI NAMA (Anti Duplikat) ---
+        let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
+        let comp = rawComp;
 
-            recap[code].tunggakan += tung;
-            recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-
-            if (!recap[code].companies[comp]) {
-                recap[code].companies[comp] = { tunggakan: 0, dpd: 0 };
-            }
-            recap[code].companies[comp].tunggakan += tung;
-            recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-            totalRisk += tung;
+        if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) {
+            comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+        } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
+            comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+        } else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) {
+            comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
+        } else if (rawComp.includes("PRIMAC")) {
+            comp = "PT. PRIMAC PERKASA INDONESIA";
+        } else if (rawComp.includes("PKSS")) {
+            comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
         }
+
+        recap[code].tunggakan += tung;
+        recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+
+        // Update data per instansi
+        if (!recap[code].companies[comp]) {
+            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+        }
+        recap[code].companies[comp].tunggakan += tung;
+        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+        recap[code].companies[comp].noaRisk += 1; // Menghitung NOA dari file Risk
+        
+        totalRisk += tung;
     });
 
     globalRecap = recap;
 
     // 4. Update Angka di Sidebar
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
-    document.getElementById('total-noa').innerText = totalNOA;
+    document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID'); // NOA Sales
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
     document.getElementById('loading-overlay').style.display = 'none';
 
-    // 5. Gambar Ulang Visual
+    // 5. Render ulang visual
     renderMarkers();
     renderRiskAreas();
     renderTrendChart(mTrend);
@@ -329,14 +335,27 @@ function renderRiskAreas() {
         }
 
         function updateCompanyRisk(comps) {
-            const list = document.getElementById('company-list');
-            document.getElementById('company-info').style.display = 'block';
-            list.innerHTML = Object.entries(comps).sort((a,b) => b[1].tunggakan - a[1].tunggakan).slice(0,3).map(([n, d]) => `
-                <div class="company-item">
-                    <div style="display:flex; justify-content:space-between;"><b>${n}</b> <span class="risk-badge">${d.dpd} DPD</span></div>
-                    <small>${formatRupiah(d.tunggakan)}</small>
-                </div>`).join('');
-        }
+    const list = document.getElementById('company-list');
+    document.getElementById('company-info').style.display = 'block';
+    
+    // Sort berdasarkan tunggakan terbesar
+    const sorted = Object.entries(comps)
+        .sort((a,b) => b[1].tunggakan - a[1].tunggakan);
+
+    list.innerHTML = sorted.map(([n, d]) => `
+        <div class="company-item">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b style="font-size:11px;">${n}</b> 
+                <span class="risk-badge" style="background:${d.dpd > 90 ? '#feb2b2' : (d.dpd > 0 ? '#faf089' : '#9ae6b4')}">
+                    ${d.dpd} DPD
+                </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:3px;">
+                <small style="color:#666;">NOA: <b>${d.noaRisk}</b></small>
+                <small style="color:#e53e3e;"><b>${formatRupiah(d.tunggakan)}</b></small>
+            </div>
+        </div>`).join('');
+}
 
         loadData();
     </script>
