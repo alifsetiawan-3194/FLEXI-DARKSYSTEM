@@ -125,6 +125,10 @@
         const companyLocations = {
             "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)": { lat: 0.5015, lng: 127.9150 },
             "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)": { lat: -2.8450, lng: 122.1520 },
+            "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)": { lat: -1.4789, lng: 102.1345 },
+            "PT. PRIMAC PERKASA INDONESIA": { lat: -6.2146, lng: 106.8451 },
+            "PT. LANDASAN TEKNIK LESTARI": { lat: -1.2691, lng: 116.8253 },
+            "PT. FORMUSA BAG INDONESIA": { lat: -7.1147, lng: 110.4214 },
             "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)": { lat: -6.2205, lng: 106.8184 }
         };
 
@@ -245,14 +249,22 @@
             });
         }
 
-        function renderRiskAreas() {
+function renderRiskAreas() {
             riskAreasLayer.clearLayers();
+            // Loop semua uker untuk cari perusahaan berisiko
             Object.values(globalRecap).forEach(uker => {
                 Object.entries(uker.companies).forEach(([name, data]) => {
-                    if (companyLocations[name] && data.dpd > 30) {
-                        L.circle([companyLocations[name].lat, companyLocations[name].lng], {
-                            color: 'red', fillColor: '#f03', fillOpacity: 0.15, radius: 100000
-                        }).addTo(riskAreasLayer).bindPopup(`${name}: ${data.dpd} DPD`);
+                    // Cek jika koordinat ada dan DPD > 0 (artinya ada tunggakan)
+                    if (companyLocations[name] && data.dpd > 0) {
+                        const loc = companyLocations[name];
+                        const colorAura = data.dpd > 90 ? 'red' : '#ff9800'; // Merah jika NPL, Oranye jika DPK
+                        
+                        L.circle([loc.lat, loc.lng], {
+                            color: colorAura,
+                            fillColor: colorAura,
+                            fillOpacity: 0.2,
+                            radius: 80000 // Radius 80km
+                        }).addTo(riskAreasLayer).bindPopup(`<b>${name}</b><br>Status: ${data.dpd} DPD`);
                     }
                 });
             });
