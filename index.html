@@ -258,12 +258,6 @@
             }
         }
 
-        if (!recap[ukerCode]) {
-            if (!recap["9999"]) {
-                recap["9999"] = { name: "UKER LAINNYA", os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
-            }
-        }
-
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
