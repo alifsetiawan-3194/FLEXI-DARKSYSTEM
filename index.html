@@ -3,35 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Flexi 2026 - Realtime Marketing Performance</title>
+    <title>Dashboard Flexi 2026 - Strategic Marketing & Risk</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        .custom-pin {
-    width: 20px;
-    height: 20px;
-    border-radius: 50% 50% 50% 0;
-    background: #00529c; /* Warna Biru BRI */
-    position: absolute;
-    transform: rotate(-45deg);
-    left: 50%;
-    top: 50%;
-    margin: -15px 0 0 -15px;
-    border: 2px solid #fff;
-    box-shadow: 1px 1px 4px rgba(0,0,0,0.5);
-}
-
-.custom-pin::after {
-    content: "";
-    width: 8px;
-    height: 8px;
-    margin: 4px 0 0 4px;
-    background: #fff;
-    position: absolute;
-    border-radius: 50%;
-}
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Roboto', sans-serif; background: #f4f7f6; overflow: hidden; }
         #map { height: 100vh; width: 100%; z-index: 1; }
+        
+        /* CSS UNTUK PIN BENDERA / JARUM */
+        .custom-pin {
+            width: 20px;
+            height: 20px;
+            border-radius: 50% 50% 50% 0;
+            background: #00529c; 
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -15px 0 0 -15px;
+            border: 2px solid #fff;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+        }
+        .custom-pin::after {
+            content: "";
+            width: 8px;
+            height: 8px;
+            margin: 4px 0 0 4px;
+            background: #fff;
+            position: absolute;
+            border-radius: 50%;
+        }
+
         .header-title {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             background: white; padding: 10px 25px; border-radius: 30px;
@@ -86,7 +88,7 @@
         </div>
         
         <div class="chart-container">
-            <span class="chart-label" id="bar-title">Top 5 Cabang (Sales)</span>
+            <span class="chart-label" id="bar-title">Top 3 Cabang (Sales)</span>
             <div style="height: 220px;"><canvas id="barChart"></canvas></div>
         </div>
         
@@ -104,17 +106,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
-        // Taruh di bagian atas script, dekat geoMapping
-const companyLocations = {
-    "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)": { lat: 0.5015, lng: 127.9150 },
-    "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)": { lat: -2.8450, lng: 122.1520 },
-    "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)": { lat: -1.4789, lng: 102.1345 },
-    "PT. PRIMAC PERKASA INDONESIA": { lat: -6.2146, lng: 106.8451 },
-    "PT. LANDASAN TEKNIK LESTARI": { lat: -1.2691, lng: 116.8253 },
-    "PT. FORMUSA BAG INDONESIA": { lat: -7.1147, lng: 110.4214 },
-    "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)": { lat: -6.2205, lng: 106.8184 }
-};
-        // --- MAPPING CABANG ---
+        // 1. DATA MASTER & KONFIGURASI
+        const companyLocations = {
+            "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)": { lat: 0.5015, lng: 127.9150 },
+            "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)": { lat: -2.8450, lng: 122.1520 },
+            "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)": { lat: -1.4789, lng: 102.1345 },
+            "PT. PRIMAC PERKASA INDONESIA": { lat: -6.2146, lng: 106.8451 },
+            "PT. LANDASAN TEKNIK LESTARI": { lat: -1.2691, lng: 116.8253 },
+            "PT. FORMUSA BAG INDONESIA": { lat: -7.1147, lng: 110.4214 },
+            "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)": { lat: -6.2205, lng: 106.8184 }
+        };
+
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
             "0020": { name: "CB WARUNG JATI", lat: -6.273611, lng: 106.829167 },
@@ -141,14 +143,19 @@ const companyLocations = {
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
+        // 2. INISIALISASI PETA
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
         
+        var markersLayer = L.layerGroup().addTo(map);
+        var riskAreasLayer = L.layerGroup().addTo(map);
+
         let barChart = null, trendChart = null;
         let globalRecap = {}, monthlyTrend = Array(12).fill(0);
 
+        // 3. UTILITY FUNCTIONS
         function formatRupiah(val) {
-            if (val === 0) return "Rp 0";
+            if (!val || val === 0) return "Rp 0";
             if (val >= 1e12) return "Rp " + (val / 1e12).toFixed(2) + " T";
             if (val >= 1e9) return "Rp " + (val / 1e9).toFixed(2) + " M";
             if (val >= 1e6) return "Rp " + (val / 1e6).toFixed(1) + " jt";
@@ -157,32 +164,33 @@ const companyLocations = {
 
         function cleanVal(v) { return v ? parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0 : 0; }
 
-function getUker(id) {
-    if (!id) return "0010"; // Default ke Pusat jika ID kosong
-    let idStr = id.toString().trim();
-    let code = idStr.substring(0, 4);
+        function getUker(id) {
+            if (!id) return "0010";
+            let idStr = id.toString().trim();
+            let code = idStr.substring(0, 4);
+            if (!geoMapping[code]) {
+                let altCode = "0" + idStr.substring(0, 3);
+                return geoMapping[altCode] ? altCode : "0010";
+            }
+            return code;
+        }
 
-    if (!geoMapping[code]) {
-        let altCode = "0" + idStr.substring(0, 3);
-        return geoMapping[altCode] ? altCode : "0010"; // Paksa ke 0010 jika kode aneh
-    }
-    return code;
-}
-
+        // 4. CORE DATA PROCESSING
         async function loadData() {
             try {
                 const resSales = await fetch(`data_pencairan_2026.csv`);
                 const resRisk = await fetch(`data_performance.csv`);
-
                 if (!resSales.ok) throw new Error("File data_pencairan_2026.csv tidak ditemukan");
                 
                 const salesData = Papa.parse(await resSales.text(), { header: true, skipEmptyLines: true }).data;
                 const riskData = resRisk.ok ? Papa.parse(await resRisk.text(), { header: true, skipEmptyLines: true }).data : [];
 
+                monthlyTrend = Array(12).fill(0);
                 salesData.forEach(d => {
                     let dateStr = d.tanggal_pencairan || d.TANGGAL || "";
                     if(dateStr) {
-                        let month = parseInt(dateStr.split('-')[1]); 
+                        let parts = dateStr.split('-');
+                        let month = parseInt(parts[1]); 
                         if(month >= 1 && month <= 12) {
                             monthlyTrend[month-1] += cleanVal(d.approved_amount || d.PLAFOND || 0);
                         }
@@ -196,205 +204,137 @@ function getUker(id) {
         }
 
         function processData(sales, risk) {
-    let recap = {};
-    let totalOS = 0, totalNOA = 0, totalRisk = 0;
-    
-    // 1. Inisialisasi awal Uker (Hanya yang terdaftar di geoMapping)
-    Object.keys(geoMapping).forEach(c => {
-        if (c !== "9999") { // Pastikan 9999 tidak ikut dibuat
-            recap[c] = { 
-                name: geoMapping[c].name, 
-                os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-                marketings: {}, companies: {} 
-            };
-        }
-    });
-
-    // 2. PROSES SALES & RM
-    sales.forEach(item => {
-        let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
-        let rawMkt = (item.final_marketing_name || "").toString().trim().toUpperCase();
-
-        // Safety Net: Jika uker tidak terdaftar, lempar ke Menara Brilian (0010)
-        if (!recap[ukerCode]) {
-            ukerCode = "0010"; 
-        }
-
-        let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
-        let mktName = rawMkt ? rawMkt : recap[ukerCode].name;
-
-        recap[ukerCode].os += amt;
-        recap[ukerCode].noa += 1;
-
-        if (!recap[ukerCode].marketings[mktName]) {
-            recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
-        }
-        recap[ukerCode].marketings[mktName].os += amt;
-        recap[ukerCode].marketings[mktName].noa += 1;
-
-        totalOS += amt;
-        totalNOA += 1;
-    });
-
-    // 3. PROSES RISK
-    risk.forEach(item => {
-        let code = getUker(item.loan_account_id || item.NOREK || "");
-        if (!recap[code]) code = "0010";
-
-        let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
-        let dpd = parseInt(item.dpd || 0);
-
-        let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
-        let comp = rawComp;
-        if (rawComp.includes("WEDA BAY")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-        else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
-        
-        recap[code].tunggakan += tung;
-        recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
-
-        if (!recap[code].companies[comp]) {
-            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-        }
-        recap[code].companies[comp].tunggakan += tung;
-        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-        recap[code].companies[comp].noaRisk += 1;
-        totalRisk += tung;
-    });
-
-    globalRecap = recap;
-    
-    // Update Stats UI
-    document.getElementById('total-os').innerText = formatRupiah(totalOS);
-    document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
-    document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
-    document.getElementById('loading-overlay').style.display = 'none';
-
-    renderMarkers();
-    renderTrendChart();
-    
-    // Default Tampilan: Top 3 Cabang
-    updateBarChart(recap, "Top 3 Cabang (Sales)", true);
-}
-
-       function renderMarkers() {
-    markersLayer.clearLayers();
-    
-    Object.keys(globalRecap).forEach(code => {
-        const uker = globalRecap[code];
-        const mapping = geoMapping[code];
-        
-        if (mapping) {
-            // Kita buat icon jarum yang ramping
-            const pinIcon = L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div class='custom-pin'></div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 30]
+            let recap = {};
+            let totalOS = 0, totalNOA = 0, totalRisk = 0;
+            
+            Object.keys(geoMapping).forEach(c => {
+                recap[c] = { 
+                    name: geoMapping[c].name, 
+                    os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+                    marketings: {}, companies: {} 
+                };
             });
 
-            const marker = L.marker([mapping.lat, mapping.lng], { icon: pinIcon })
-                .bindPopup(`
-                    <div style="font-family: Arial; font-size: 12px;">
-                        <strong>${uker.name}</strong><br>
-                        Sales: ${formatRupiah(uker.os)}<br>
-                        Risk: ${formatRupiah(uker.tunggakan)}
-                    </div>
-                `);
-            
-            marker.on('click', () => {
-                updateSidebar(code);
+            sales.forEach(item => {
+                let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
+                if (!recap[ukerCode]) ukerCode = "0010";
+                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
+                let mktName = (item.final_marketing_name || "").toUpperCase().trim() || recap[ukerCode].name;
+
+                recap[ukerCode].os += amt;
+                recap[ukerCode].noa += 1;
+                if (!recap[ukerCode].marketings[mktName]) recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
+                recap[ukerCode].marketings[mktName].os += amt;
+                recap[ukerCode].marketings[mktName].noa += 1;
+                totalOS += amt;
+                totalNOA += 1;
             });
-            
-            markersLayer.addLayer(marker);
+
+            risk.forEach(item => {
+                let code = getUker(item.loan_account_id || item.NOREK || "");
+                if (!recap[code]) code = "0010";
+                let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
+                let dpd = parseInt(item.dpd || 0);
+                let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
+                
+                let comp = rawComp;
+                if (rawComp.includes("WEDA BAY")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+                else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+                
+                recap[code].tunggakan += tung;
+                recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+                if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+                recap[code].companies[comp].tunggakan += tung;
+                recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+                recap[code].companies[comp].noaRisk += 1;
+                totalRisk += tung;
+            });
+
+            globalRecap = recap;
+            document.getElementById('total-os').innerText = formatRupiah(totalOS);
+            document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
+            document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
+            document.getElementById('loading-overlay').style.display = 'none';
+
+            renderMarkers();
+            renderRiskAreas();
+            renderTrendChart();
+            updateBarChart(recap, "Top 3 Cabang (Sales)", true);
         }
-    });
-}
+
+        // 5. MAP RENDERING
+        function renderMarkers() {
+            markersLayer.clearLayers();
+            Object.keys(globalRecap).forEach(code => {
+                const uker = globalRecap[code];
+                const mapping = geoMapping[code];
+                if (mapping && uker.os > 0) {
+                    const pinIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class='custom-pin'></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30]
+                    });
+                    const marker = L.marker([mapping.lat, mapping.lng], { icon: pinIcon })
+                        .bindPopup(`<b>${uker.name}</b><br>Sales: ${formatRupiah(uker.os)}<br>Risk: ${formatRupiah(uker.tunggakan)}`);
+                    marker.on('click', () => updateSidebar(code));
+                    markersLayer.addLayer(marker);
+                }
+            });
+        }
 
         function renderRiskAreas() {
-    // Kita looping dari data globalRecap yang sudah diproses
-    Object.values(globalRecap).forEach(uker => {
-        Object.entries(uker.companies).forEach(([name, data]) => {
-            // Cek apakah perusahaan ini ada di daftar koordinat kita dan punya DPD tinggi
-            if (companyLocations[name] && data.dpd > 30) {
-                const loc = companyLocations[name];
-                
-                // Tambahkan Lingkaran Transparan sebagai "Warna Area"
-                L.circle([loc.lat, loc.lng], {
-                    color: 'red',
-                    fillColor: '#f03',
-                    fillOpacity: 0.2, // Tipis-tipis aja biar artistik
-                    radius: 150000 // Radius 150km (sesuaikan kebutuhan)
-                }).addTo(map).bindPopup(`<b>Area Risiko Tinggi:</b><br>${name}<br>Max DPD: ${data.dpd}`);
-            }
-        });
-    });
-}
+            riskAreasLayer.clearLayers();
+            Object.values(globalRecap).forEach(uker => {
+                Object.entries(uker.companies).forEach(([name, data]) => {
+                    if (companyLocations[name] && data.dpd > 30) {
+                        const loc = companyLocations[name];
+                        const circle = L.circle([loc.lat, loc.lng], {
+                            color: 'red', fillColor: '#f03', fillOpacity: 0.15, radius: 120000
+                        }).bindPopup(`<b>Area Risiko:</b> ${name}<br>Max DPD: ${data.dpd}`);
+                        riskAreasLayer.addLayer(circle);
+                    }
+                });
+            });
+        }
 
+        // 6. CHART & SIDEBAR
         function renderTrendChart() {
             const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChart) trendChart.destroy();
             trendChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
                     datasets: [{ label: 'Sales (M)', data: monthlyTrend.map(v => v / 1e9), borderColor: '#00529c', backgroundColor: 'rgba(0,82,156,0.1)', fill: true, tension: 0.4 }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
         function updateBarChart(source, title, isBranch) {
-    const ctx = document.getElementById('barChart').getContext('2d');
-    if (barChart) barChart.destroy();
-    document.getElementById('bar-title').innerText = title;
-    
-    // 1. Ambil semua data dan pastikan tidak ada OS yang 0 atau undefined
-    let entries = isBranch 
-        ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) 
-        : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
-    
-    // 2. Filter hanya yang punya OS > 0 agar baris kosong tidak ikut tampil
-    let filtered = entries.filter(x => x[1] > 0);
-    
-    // 3. Sort dari yang terbesar dan POTONG secara paksa jadi 3 saja
-    let sorted = filtered.sort((a, b) => b[1] - a[1]).slice(0, 3);
-    
-    barChart = new Chart(ctx, {
-        type: 'bar',
-        data: { 
-            labels: sorted.map(x => x[0]), 
-            datasets: [{ 
-                data: sorted.map(x => x[1]), 
-                backgroundColor: '#00529c', 
-                borderRadius: 4, 
-                noa: sorted.map(x => x[2]) 
-            }] 
-        },
-        options: { 
-            indexAxis: 'y', 
-            maintainAspectRatio: false, 
-            layout: {
-                padding: { left: 0, right: 20, top: 0, bottom: 0 }
-            },
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { 
-                    callbacks: { 
-                        label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` 
-                    } 
-                } 
-            }, 
-            scales: { 
-                x: { display: false }, 
-                y: { 
-                    ticks: { 
-                        font: { size: 10, weight: 'bold' },
-                        autoSkip: false // Paksa semua label muncul tanpa skip
-                    } 
-                } 
-            } 
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChart) barChart.destroy();
+            document.getElementById('bar-title').innerText = title;
+            let entries = isBranch 
+                ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) 
+                : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
+            let sorted = entries.filter(x => x[1] > 0).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: { 
+                    labels: sorted.map(x => x[0]), 
+                    datasets: [{ data: sorted.map(x => x[1]), backgroundColor: '#00529c', borderRadius: 4, noa: sorted.map(x => x[2]) }] 
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
         }
-    });
-}
+
+        function updateSidebar(code) {
+            const uker = globalRecap[code];
+            updateBarChart(uker.marketings, `Top 3 RM - ${uker.name}`, false);
+            updateCompanyRisk(uker.companies);
+        }
 
         function updateCompanyRisk(companies) {
             const list = document.getElementById('company-list');
@@ -403,10 +343,10 @@ function getUker(id) {
             list.innerHTML = sorted.map(([name, d], i) => `
                 <div class="company-item">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="company-name" style="font-size:11px; font-weight:bold;">${i+1}. ${name}</span>
+                        <span style="font-size:11px; font-weight:bold;">${i+1}. ${name}</span>
                         <span class="risk-badge" style="background:${d.dpd > 90 ? '#feb2b2' : (d.dpd > 0 ? '#faf089' : '#9ae6b4')}">${d.dpd} DPD</span>
                     </div>
-                    <div style="font-size:10px; color:#666; margin-top:2px;">Tunggakan: <b>${formatRupiah(d.tunggakan)}</b> | ${d.noaRisk} NOA</div>
+                    <div style="font-size:10px; color:#666;">Tunggakan: <b>${formatRupiah(d.tunggakan)}</b></div>
                 </div>`).join('');
         }
 
