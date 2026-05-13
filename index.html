@@ -177,17 +177,25 @@
 
         function cleanVal(v) { return v ? parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0 : 0; }
 
-        function getUker(id) {
-    if(!id) return "9999";
-    let code = id.toString().substring(0, 4);
-    if (!geoMapping[code]) code = "0" + id.toString().substring(0, 3);
+  function getUker(id) {
+    if (!id) return "9999";
+    let idStr = id.toString().trim();
     
-    // Safety check: Jika uker tidak ada di geoMapping, arahkan ke 9999
+    // Ambil 4 digit pertama sebagai kode uker
+    let code = idStr.substring(0, 4);
+
+    // Validasi: Jika kode uker tidak ada di geoMapping, 
+    // coba bersihkan jika ada prefix nol yang hilang atau berlebih
     if (!geoMapping[code]) {
-        code = "9999";
+        // Cek jika ID hanya 3 digit uker di depan, tambahkan 0
+        let altCode = "0" + idStr.substring(0, 3);
+        if (geoMapping[altCode]) return altCode;
+        
+        // Jika tetap tidak ketemu, masukkan ke kategori UNKNOWN agar tidak hilang
         if (!geoMapping["9999"]) {
             geoMapping["9999"] = { name: "UKER LAINNYA", lat: -2.5, lng: 118.0 };
         }
+        return "9999";
     }
     return code;
 }
@@ -233,34 +241,50 @@
     });
 
     // 2. PROSES SALES
+    function processData(sales, risk) {
+    let recap = {};
+    let totalOS = 0, totalNOA = 0, totalRisk = 0;
+    
+    // 1. Inisialisasi awal Uker (Pastikan bagian ini tetap ada)
+    Object.keys(geoMapping).forEach(c => {
+        recap[c] = { 
+            name: geoMapping[c].name, 
+            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+            marketings: {}, companies: {} 
+        };
+    });
+
+    // 2. PROSES SALES (GANTI BLOK LAMA DENGAN INI)
     sales.forEach(item => {
         let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
         
-        // Safety: Jika ukerCode tidak ditemukan di mapping, jangan di-skip, 
-        // tapi arahkan ke uker terdekat atau log kodenya.
-        if (!recap[ukerCode]) return; 
+        // Agar data tidak hilang (selisih 181), pastikan ukerCode masuk ke '9999' jika tidak terdaftar
+        if (!recap[ukerCode]) {
+            ukerCode = "9999";
+            if (!recap["9999"]) {
+                recap["9999"] = { name: "UKER LAINNYA", os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
+            }
+        }
 
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
-        // Ambil kode marketing, bersihkan SEMUA spasi, paksa Uppercase
-        let rawMktCode = (item.final_marketing_name || "").toString().replace(/\s+/g, '').toUpperCase();
-        
-        let mktDisplayName;
+        // --- Perbaikan Logic RM Adam & Others ---
+        let rawMktCode = (item.final_marketing_name || "").toString().trim().toUpperCase();
+        let mktDisplayName = branchName; // Default ke nama cabang jika tidak ketemu
 
-        // VALIDASI KE RM REFERENCE
+        // Cek dengan prefix RBO maupun tanpa RBO
         if (rawMktCode && rmReference[rawMktCode]) {
             mktDisplayName = rmReference[rawMktCode];
-        } else {
-            // Jika tidak terdaftar, alihkan ke nama Uker (Pencapaian Kantor)
-            mktDisplayName = branchName; 
+        } else if (rmReference["RBO" + rawMktCode]) {
+            mktDisplayName = rmReference["RBO" + rawMktCode];
         }
 
         // Akumulasi Cabang
         recap[ukerCode].os += amt;
         recap[ukerCode].noa += 1;
 
-        // Akumulasi RM (PENTING: Jangan sampai undefined)
+        // Akumulasi RM
         if (!recap[ukerCode].marketings[mktDisplayName]) {
             recap[ukerCode].marketings[mktDisplayName] = { os: 0, noa: 0 };
         }
@@ -271,18 +295,30 @@
         totalNOA += 1;
     });
 
-    // 3. PROSES RISK (Kenapa DPD hilang? Karena ukerCode di Risk harus sama persis dengan Sales)
-    risk.forEach(item => {
+    // 3. PROSES RISK (Lanjutkan dengan bagian risk di bawahnya...)
+   
+ risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK || "");
         
-        // Cek apakah uker ini ada di recap (yang dibuat dari geoMapping)
         if (recap[code]) {
             let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
             let dpd = parseInt(item.dpd || 0);
-            let comp = (item.company || "ORGANIC").toUpperCase();
+
+            // --- START SOLUSI NAMING INSTANSI (POINT 3) ---
+            let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
+            let comp = rawComp;
+
+            // Logika Penyeragaman Nama
+            if (rawComp.includes("WEDA BAY")) {
+                comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+            } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
+                comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+            } else if (rawComp.includes("HUAYUE")) {
+                comp = "PT. HUAYUE NICKEL COBALT";
+            }
+            // --- END SOLUSI NAMING INSTANSI ---
             
             recap[code].tunggakan += tung;
-            // Update DPD tertinggi di cabang tersebut
             recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
 
             if (!recap[code].companies[comp]) {
