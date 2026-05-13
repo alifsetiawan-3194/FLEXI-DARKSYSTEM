@@ -188,68 +188,96 @@ function processData(sales, risk) {
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     let mTrend = Array(12).fill(0);
-    nationalCompanyStats = {}; // Reset setiap kali filter berubah
+    nationalCompanyStats = {}; // Reset data nasional tiap kali proses
 
+    // 1. Inisialisasi struktur Cabang
     Object.keys(geoMapping).forEach(c => {
-        recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
+        recap[c] = { 
+            name: geoMapping[c].name, 
+            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+            marketings: {}, companies: {} 
+        };
     });
 
-    // Olah Sales
+    // 2. Olah Data Sales (Pencairan Baru)
     sales.forEach(d => {
         let code = getUker(d.loan_account_id || d.NOREK);
-        if (!recap[code]) code = "0010";
+        if (!recap[code]) code = "0010"; // Fallback ke pusat jika uker tak dikenal
+        
         let amt = cleanVal(d.approved_amount || d.PLAFOND);
+        let mkt = (d.final_marketing_name || "RM").toUpperCase().trim();
         let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
+
         recap[code].os += amt;
         recap[code].noa += 1;
+        
+        if (!recap[code].marketings[mkt]) recap[code].marketings[mkt] = { os: 0 };
+        recap[code].marketings[mkt].os += amt;
+        
         totalOS += amt;
         totalNOA += 1;
         if(month) mTrend[month-1] += amt;
     });
 
-    // Olah Risk & Hitung Agregat Nasional
+    // 3. Olah Data Risk (Performance & Agregat Instansi)
     risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK);
         if (!recap[code]) code = "0010";
-        let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET);
+
+        let tung = cleanVal(item.total_tunggakan || 0);
+        let bd = cleanVal(item.BAKI_DEBET || 0);
         let dpd = parseInt(item.dpd || 0);
         
-        // NORMALISASI NAMA
+        // NORMALISASI NAMA INSTANSI
         let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
         let comp = rawComp;
-        if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+        if (rawComp.includes("WEDA BAY") || rawComp.includes("IWIP") || rawComp.includes("WEDABAY") || rawComp.includes("WEDABAI")) {comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";}
         else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
         else if (rawComp.includes("SINAR WIJAYA") || rawComp.includes("SWPI")) comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
         else if (rawComp.includes("PRIMAC")) comp = "PT. PRIMAC PERKASA INDONESIA";
         else if (rawComp.includes("PKSS")) comp = "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
 
-        // Isi Data Cabang
-        if (!recap[code].companies[comp]) recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-        recap[code].companies[comp].tunggakan += tung;
-        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-        recap[code].companies[comp].noaRisk += 1;
+        // Hitung Kategori
+        let isNPL = dpd > 90;
+        let isDPK = dpd > 0 && dpd <= 90;
 
-        // ISI DATA NASIONAL (Untuk Aura Peta & Sidebar Top 10)
-        if (!nationalCompanyStats[comp]) nationalCompanyStats[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+        // A. Update Data Per Cabang (Untuk Klik Marker)
+        if (!recap[code].companies[comp]) {
+            recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaDPK: 0, noaNPL: 0, bakiDebet: 0 };
+        }
+        recap[code].companies[comp].tunggakan += tung;
+        recap[code].companies[comp].bakiDebet += bd;
+        recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+        if (isNPL) recap[code].companies[comp].noaNPL += 1;
+        if (isDPK) recap[code].companies[comp].noaDPK += 1;
+
+        // B. Update Data Nasional (Untuk Sidebar & Aura Map)
+        if (!nationalCompanyStats[comp]) {
+            nationalCompanyStats[comp] = { tunggakan: 0, dpd: 0, noaDPK: 0, noaNPL: 0, bakiDebet: 0 };
+        }
         nationalCompanyStats[comp].tunggakan += tung;
+        nationalCompanyStats[comp].bakiDebet += bd;
         nationalCompanyStats[comp].dpd = Math.max(nationalCompanyStats[comp].dpd, dpd);
-        nationalCompanyStats[comp].noaRisk += 1;
+        if (isNPL) nationalCompanyStats[comp].noaNPL += 1;
+        if (isDPK) nationalCompanyStats[comp].noaDPK += 1;
 
         recap[code].tunggakan += tung;
         totalRisk += tung;
     });
 
     globalRecap = recap;
+
+    // 4. Update UI & Charts
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
     document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
     document.getElementById('loading-overlay').style.display = 'none';
 
     renderMarkers();
-    renderRiskAreas(); // Sekarang pake data nationalCompanyStats
+    renderRiskAreas();
     renderTrendChart(mTrend);
     updateBarChart(recap, "Top 3 Cabang (Sales)", true);
-    updateCompanyRisk(nationalCompanyStats); // Tampilkan Top 10 Nasional di awal
+    updateCompanyRisk(nationalCompanyStats); // Pastikan ini pakai data nasional terbaru
 }
 
         function renderMarkers() {
