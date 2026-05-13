@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Flexi 2026 - Final Stable</title>
+    <title>Dashboard Flexi 2026 - Fixed Logic</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -20,7 +20,7 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.1); z-index: 1000; max-height: 88vh; overflow-y: auto;
         }
         .filter-box { background: #00529c; padding: 12px; border-radius: 8px; margin-bottom: 15px; color: white; }
-        .filter-select { width: 100%; padding: 8px; border-radius: 5px; border: none; margin-top: 5px; font-weight: bold; cursor: pointer; }
+        .filter-select { width: 100%; padding: 8px; border-radius: 5px; border: none; margin-top: 5px; font-weight: bold; }
         .stat-card { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #00529c; }
         .stat-card small { color: #666; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .stat-card div { font-weight: bold; font-size: 16px; color: #333; }
@@ -37,7 +37,7 @@
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text" style="margin-top:10px; font-weight:bold; color:#00529c;">Menyinkronkan Data Sales & Risk...</div>
+        <div id="loading-text" style="margin-top:10px; font-weight:bold; color:#00529c;">Menghitung Ulang NOA Lancar...</div>
     </div>
     
     <div class="header-title">FLEXI STRATEGIC DASHBOARD 2026</div>
@@ -57,7 +57,7 @@
             <div class="stat-card" style="flex:1;"><small>Total Sales</small><div id="total-os">Rp 0</div></div>
             <div class="stat-card" style="flex:1; border-left-color: #27ae60;"><small>Total NOA</small><div id="total-noa">0</div></div>
         </div>
-        <div class="stat-card" style="border-left-color: #e53e3e;"><small>Total Tunggakan (Risk)</small><div id="total-risk">Rp 0</div></div>
+        <div class="stat-card" style="border-left-color: #e53e3e;"><small>Total Tunggakan</small><div id="total-risk">Rp 0</div></div>
 
         <div class="chart-container">
             <span class="chart-label">Tren Sales Bulanan (Miliar)</span>
@@ -70,11 +70,11 @@
         </div>
         
         <div id="company-info">
-            <span class="chart-label">Top 5 Instansi (Health Monitoring)</span>
+            <span class="chart-label">Analisa Kesehatan Instansi</span>
             <div id="company-list"></div>
         </div>
         <br>
-        <button onclick="location.reload()" style="width:100%; padding:10px; cursor:pointer; font-weight:bold; border-radius:5px; border:1px solid #ccc;">REFRESH DASHBOARD</button>
+        <button onclick="location.reload()" style="width:100%; padding:10px; cursor:pointer; font-weight:bold;">REFRESH DATA</button>
     </div>
 
     <div id="map"></div>
@@ -110,21 +110,12 @@
             "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
         };
 
-        const companyLocations = {
-            "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)": { lat: 0.5015, lng: 127.9150 },
-            "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)": { lat: -2.8450, lng: 122.1520 },
-            "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)": { lat: -1.4789, lng: 102.1345 },
-            "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)": { lat: -6.2205, lng: 106.8184 }
-        };
-
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-        
         var markersLayer = L.layerGroup().addTo(map);
-        var riskAreasLayer = L.layerGroup().addTo(map);
-
+        
         let barChart = null, trendChart = null;
-        let globalRecap = {}, nationalCompanyStats = {}, rawSales = [], rawRisk = [];
+        let rawSales = [], rawRisk = [];
 
         function formatRupiah(val) {
             if (!val) return "Rp 0";
@@ -135,9 +126,15 @@
 
         function cleanVal(v) { return parseFloat(String(v || 0).replace(/[^0-9.-]+/g, "")) || 0; }
 
-        function getUker(id) {
-            let idStr = String(id || "").substring(0, 4);
-            return geoMapping[idStr] ? idStr : null;
+        function normalizeComp(raw) {
+            if (!raw) return "ORGANIC";
+            let s = raw.toUpperCase();
+            if (/WEDA BAY|IWIP|WEDABAY|WEDABAI/.test(s)) return "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+            if (/MOROWALI|IMIP/.test(s)) return "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+            if (/SINAR WIJAYA|SWPI/.test(s)) return "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
+            if (/PRIMAC/.test(s)) return "PT. PRIMAC PERKASA INDONESIA";
+            if (/PKSS/.test(s)) return "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)";
+            return s.trim();
         }
 
         async function loadData() {
@@ -148,178 +145,144 @@
                 ]);
                 rawSales = Papa.parse(await sRes.text(), { header: true, skipEmptyLines: true }).data;
                 rawRisk = rRes.ok ? Papa.parse(await rRes.text(), { header: true, skipEmptyLines: true }).data : [];
-                applyFilters();
-            } catch (e) { 
-                document.getElementById('loading-text').innerText = "Gagal Memuat File CSV!";
-            }
+                processData();
+            } catch (e) { console.error(e); }
         }
 
-        function applyFilters() {
+        document.getElementById('filter-month').addEventListener('change', processData);
+
+        function processData() {
             const m = document.getElementById('filter-month').value;
-            const filteredSales = rawSales.filter(d => {
-                if (m === 'all') return true;
-                let date = d.tanggal_pencairan || d.TANGGAL || "";
-                return parseInt(date.split('-')[1]) == m;
-            });
-            processData(filteredSales, rawRisk);
-        }
-
-        document.getElementById('filter-month').addEventListener('change', applyFilters);
-
-        function processData(sales, risk) {
-            let recap = {};
-            let totalOS = 0, totalNOA = 0, totalRiskAmt = 0;
+            let totalOS = 0, totalNOA = 0, totalTunggakan = 0;
             let mTrend = Array(12).fill(0);
-            nationalCompanyStats = {};
+            let ukerStats = {};
+            let instansiStats = {};
 
-            // Inisialisasi Uker
-            Object.keys(geoMapping).forEach(c => {
-                recap[c] = { name: geoMapping[c].name, os: 0, noa: 0, tunggakan: 0, marketings: {} };
-            });
-
-            // 1. Proses DATABASE UTAMA (Sales)
-            sales.forEach(d => {
-                let code = getUker(d.loan_account_id || d.NOREK);
-                let amt = cleanVal(d.approved_amount || d.PLAFOND);
+            // 1. Ambil SEMUA Populasi dari Sales
+            rawSales.forEach(d => {
                 let month = parseInt((d.tanggal_pencairan || d.TANGGAL || "").split('-')[1]);
-                
-                let rawComp = (d.company || d.INSTANSI || "ORGANIC").toUpperCase().trim();
-                let comp = rawComp;
-                if (/WEDA BAY|IWIP|WEDABAY|WEDABAI/.test(rawComp)) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-                else if (/MOROWALI|IMIP/.test(rawComp)) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
-                else if (/SINAR WIJAYA|SWPI/.test(rawComp)) comp = "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)";
+                if (m !== 'all' && month != m) return;
 
-                // Hitung Nasional per Instansi (Lancar by default)
-                if (!nationalCompanyStats[comp]) {
-                    nationalCompanyStats[comp] = { tunggakan: 0, bakiDebet: 0, dpd: 0, noaLancar: 0, noaDPK: 0, noaNPL: 0, totalNOA: 0 };
-                }
-                nationalCompanyStats[comp].totalNOA += 1;
-                nationalCompanyStats[comp].noaLancar += 1;
-                nationalCompanyStats[comp].bakiDebet += amt;
+                let code = String(d.loan_account_id || d.NOREK || "").substring(0, 4);
+                let amt = cleanVal(d.approved_amount || d.PLAFOND);
+                let nameInstansi = normalizeComp(d.company || d.INSTANSI || d.NAMA_INSTANSI);
 
-                if(recap[code]) {
-                    recap[code].os += amt;
-                    recap[code].noa += 1;
-                    let mkt = (d.final_marketing_name || "RM").toUpperCase().trim();
-                    recap[code].marketings[mkt] = (recap[code].marketings[mkt] || 0) + amt;
-                }
                 totalOS += amt;
                 totalNOA += 1;
                 if(month) mTrend[month-1] += amt;
+
+                // Stats Cabang
+                if(geoMapping[code]) {
+                    if(!ukerStats[code]) ukerStats[code] = { os: 0, tung: 0 };
+                    ukerStats[code].os += amt;
+                }
+
+                // Logic Lancar: Masukkan semua ke Lancar dulu
+                if(!instansiStats[nameInstansi]) {
+                    instansiStats[nameInstansi] = { total: 0, lancar: 0, dpk: 0, npl: 0, tung: 0, os: 0, maxDpd: 0 };
+                }
+                instansiStats[nameInstansi].total += 1;
+                instansiStats[nameInstansi].lancar += 1;
+                instansiStats[nameInstansi].os += amt;
             });
 
-            // 2. Proses DATA RISK (Update Status dari Lancar ke DPK/NPL)
-            risk.forEach(item => {
-                let code = getUker(item.loan_account_id || item.NOREK);
-                let tung = cleanVal(item.total_tunggakan || 0);
-                let dpd = parseInt(item.dpd || 0);
-                let rawComp = (item.company || item.INSTANSI || "ORGANIC").toUpperCase().trim();
-                
-                let comp = rawComp;
-                if (/WEDA BAY|IWIP|WEDABAY|WEDABAI/.test(rawComp)) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-                else if (/MOROWALI|IMIP/.test(rawComp)) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+            // 2. Kurangi dengan data Risk (Macet)
+            rawRisk.forEach(r => {
+                let nameInstansi = normalizeComp(r.company || r.INSTANSI || r.NAMA_INSTANSI);
+                let tung = cleanVal(r.total_tunggakan || 0);
+                let dpd = parseInt(r.dpd || 0);
+                let code = String(r.loan_account_id || r.NOREK || "").substring(0, 4);
 
-                if (nationalCompanyStats[comp]) {
-                    nationalCompanyStats[comp].tunggakan += tung;
-                    nationalCompanyStats[comp].dpd = Math.max(nationalCompanyStats[comp].dpd, dpd);
+                if (instansiStats[nameInstansi]) {
+                    instansiStats[nameInstansi].tung += tung;
+                    instansiStats[nameInstansi].maxDpd = Math.max(instansiStats[nameInstansi].maxDpd, dpd);
                     
                     if (dpd > 0) {
-                        if (nationalCompanyStats[comp].noaLancar > 0) nationalCompanyStats[comp].noaLancar -= 1;
-                        if (dpd > 90) nationalCompanyStats[comp].noaNPL += 1;
-                        else nationalCompanyStats[comp].noaDPK += 1;
+                        // Nasabah ini macet, kurangi dari jatah Lancar
+                        if(instansiStats[nameInstansi].lancar > 0) instansiStats[nameInstansi].lancar -= 1;
+                        
+                        if (dpd > 90) instansiStats[nameInstansi].npl += 1;
+                        else instansiStats[nameInstansi].dpk += 1;
                     }
                 }
-
-                if(recap[code]) recap[code].tunggakan += tung;
-                totalRiskAmt += tung;
+                
+                if(ukerStats[code]) ukerStats[code].tung += tung;
+                totalTunggakan += tung;
             });
 
-            globalRecap = recap;
+            // Update UI
             document.getElementById('total-os').innerText = formatRupiah(totalOS);
-            document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
-            document.getElementById('total-risk').innerText = formatRupiah(totalRiskAmt);
+            document.getElementById('total-noa').innerText = totalNOA;
+            document.getElementById('total-risk').innerText = formatRupiah(totalTunggakan);
             document.getElementById('loading-overlay').style.display = 'none';
 
-            renderMarkers();
-            renderRiskAreas();
-            renderTrendChart(mTrend);
-            updateBarChart(recap, "Top 3 Cabang (Sales)", true);
-            updateCompanyRisk(nationalCompanyStats);
+            renderMapMarkers(ukerStats);
+            renderTrend(mTrend);
+            updateBar(ukerStats);
+            updateCompanyList(instansiStats);
         }
 
-        function renderMarkers() {
+        function renderMapMarkers(stats) {
             markersLayer.clearLayers();
-            Object.keys(globalRecap).forEach(code => {
-                const uker = globalRecap[code];
-                if (uker.os > 0) {
-                    const pin = L.divIcon({ className: 'custom-div-icon', html: `<div class='custom-pin'></div>`, iconSize: [20, 20], iconAnchor: [10, 20] });
-                    L.marker([geoMapping[code].lat, geoMapping[code].lng], { icon: pin })
-                        .addTo(markersLayer)
-                        .bindPopup(`<b>${uker.name}</b><hr>Sales: ${formatRupiah(uker.os)}<br>Tunggakan: ${formatRupiah(uker.tunggakan)}`);
+            Object.keys(stats).forEach(code => {
+                if(geoMapping[code]) {
+                    const pin = L.divIcon({ className: 'custom-div-icon', html: `<div class='custom-pin'></div>`, iconSize: [20, 20] });
+                    L.marker([geoMapping[code].lat, geoMapping[code].lng], {icon: pin}).addTo(markersLayer)
+                     .bindPopup(`<b>${geoMapping[code].name}</b><br>Sales: ${formatRupiah(stats[code].os)}<br>Tunggakan: ${formatRupiah(stats[code].tung)}`);
                 }
             });
         }
 
-        function renderRiskAreas() {
-            riskAreasLayer.clearLayers();
-            Object.entries(nationalCompanyStats).forEach(([name, data]) => {
-                if (companyLocations[name] && (data.noaDPK + data.noaNPL) > 0) {
-                    const loc = companyLocations[name];
-                    const color = data.dpd > 90 ? '#e53e3e' : '#f6ad55';
-                    L.circle([loc.lat, loc.lng], { color: color, fillColor: color, fillOpacity: 0.2, radius: 100000 }).addTo(riskAreasLayer)
-                        .bindPopup(`<b>${name}</b><hr>Total NOA: ${data.totalNOA}<br>NPL/DPK: ${data.noaDPK + data.noaNPL}<br>Tunggakan: ${formatRupiah(data.tunggakan)}`);
-                }
-            });
-        }
-
-        function updateCompanyRisk(comps) {
+        function updateCompanyList(data) {
             const list = document.getElementById('company-list');
-            const sorted = Object.entries(comps)
-                .sort((a, b) => b[1].tunggakan - a[1].tunggakan)
+            const sorted = Object.entries(data)
+                .sort((a,b) => b[1].tung - a[1].tung)
                 .slice(0, 5);
 
-            list.innerHTML = sorted.map(([n, d]) => `
-                <div style="border-bottom:1px solid #edf2f7; padding:10px 0;">
+            list.innerHTML = sorted.map(([name, stat]) => `
+                <div style="border-bottom:1px solid #eee; padding:10px 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b style="font-size:10px; color:#2d3748;">${n}</b>
-                        <span class="risk-badge" style="background:${d.dpd > 90 ? '#fed7d7':'#fefcbf'}; color:${d.dpd > 90 ? '#9b2c2c':'#975a16'}">${d.dpd} DPD</span>
+                        <b style="font-size:10px; color:#00529c;">${name}</b>
+                        <span class="risk-badge" style="background:${stat.maxDpd > 90 ? '#fed7d7' : '#fefcbf'}">${stat.maxDpd} DPD</span>
                     </div>
-                    <div style="font-size:10px; margin-top:5px; display:grid; grid-template-columns:1fr 1fr; gap:2px;">
-                        <span style="color:#38a169">Lancar: <b>${d.noaLancar}</b></span>
-                        <span style="text-align:right">Total NOA: <b>${d.totalNOA}</b></span>
-                        <span style="color:#d69e2e">DPK: ${d.noaDPK}</span>
-                        <span style="text-align:right; color:#e53e3e">NPL: ${d.noaNPL}</span>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; font-size:10px; margin-top:5px; color:#444;">
+                        <span style="color:green;">Lancar: <b>${stat.lancar}</b></span>
+                        <span style="text-align:right">Total: <b>${stat.total}</b></span>
+                        <span style="color:orange;">DPK: ${stat.dpk}</span>
+                        <span style="text-align:right; color:red;">NPL: ${stat.npl}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px; font-weight:bold;">
-                        <small style="color:#718096">OS: ${formatRupiah(d.bakiDebet)}</small>
-                        <small style="color:#e53e3e">Tung: ${formatRupiah(d.tunggakan)}</small>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px; font-weight:bold; font-size:11px;">
+                        <span style="color:#777;">OS: ${formatRupiah(stat.os)}</span>
+                        <span style="color:#e53e3e;">Tung: ${formatRupiah(stat.tung)}</span>
                     </div>
-                </div>`).join('');
+                </div>
+            `).join('');
         }
 
-        function renderTrendChart(data) {
+        function renderTrend(data) {
             const ctx = document.getElementById('trendChart').getContext('2d');
-            if (trendChart) trendChart.destroy();
+            if(trendChart) trendChart.destroy();
             trendChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'],
-                    datasets: [{ label: 'Miliar', data: data.map(v => v/1e9), borderColor: '#00529c', tension: 0.3, fill: true, backgroundColor: 'rgba(0,82,156,0.1)', pointRadius: 2 }]
+                    datasets: [{ label: 'Miliar', data: data.map(v => v/1e9), borderColor: '#00529c', tension: 0.3, fill: true, backgroundColor: 'rgba(0,82,156,0.1)' }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        function updateBarChart(source, title, isBranch) {
+        function updateBar(stats) {
             const ctx = document.getElementById('barChart').getContext('2d');
-            document.getElementById('bar-title').innerText = title;
-            if (barChart) barChart.destroy();
-            let entries = isBranch ? Object.entries(source).map(x => [x[1].name, x[1].os]) : Object.entries(source);
-            let sorted = entries.filter(x => x[1] > 0).sort((a,b) => b[1]-a[1]).slice(0, 3);
+            if(barChart) barChart.destroy();
+            let sorted = Object.entries(stats).sort((a,b) => b[1].os - a[1].os).slice(0, 3);
             barChart = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: sorted.map(x => x[0]), datasets: [{ data: sorted.map(x => x[1]), backgroundColor: '#00529c' }] },
-                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false } } } }
+                data: {
+                    labels: sorted.map(x => geoMapping[x[0]].name.replace("CB ","")),
+                    datasets: [{ data: sorted.map(x => x[1].os), backgroundColor: '#00529c' }]
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
