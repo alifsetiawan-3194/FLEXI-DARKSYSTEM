@@ -231,7 +231,7 @@
     let recap = {};
     let totalOS = 0, totalNOA = 0, totalRisk = 0;
     
-    // 1. Inisialisasi awal Uker (PASTIKAN SEMUA ADA)
+    // 1. Inisialisasi awal Uker dari geoMapping
     Object.keys(geoMapping).forEach(c => {
         recap[c] = { 
             name: geoMapping[c].name, 
@@ -241,24 +241,10 @@
     });
 
     // 2. PROSES SALES
-    function processData(sales, risk) {
-    let recap = {};
-    let totalOS = 0, totalNOA = 0, totalRisk = 0;
-    
-    // 1. Inisialisasi awal Uker (Pastikan bagian ini tetap ada)
-    Object.keys(geoMapping).forEach(c => {
-        recap[c] = { 
-            name: geoMapping[c].name, 
-            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-            marketings: {}, companies: {} 
-        };
-    });
-
-    // 2. PROSES SALES (GANTI BLOK LAMA DENGAN INI)
     sales.forEach(item => {
         let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
         
-        // Agar data tidak hilang (selisih 181), pastikan ukerCode masuk ke '9999' jika tidak terdaftar
+        // Safety: Masukkan ke '9999' jika uker tidak terdaftar di mapping
         if (!recap[ukerCode]) {
             ukerCode = "9999";
             if (!recap["9999"]) {
@@ -269,11 +255,10 @@
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
-        // --- Perbaikan Logic RM Adam & Others ---
+        // Normalisasi Kode RM (Adam Rukmana fix)
         let rawMktCode = (item.final_marketing_name || "").toString().trim().toUpperCase();
-        let mktDisplayName = branchName; // Default ke nama cabang jika tidak ketemu
+        let mktDisplayName = branchName; // Default ke nama cabang
 
-        // Cek dengan prefix RBO maupun tanpa RBO
         if (rawMktCode && rmReference[rawMktCode]) {
             mktDisplayName = rmReference[rawMktCode];
         } else if (rmReference["RBO" + rawMktCode]) {
@@ -295,20 +280,18 @@
         totalNOA += 1;
     });
 
-    // 3. PROSES RISK (Lanjutkan dengan bagian risk di bawahnya...)
-   
- risk.forEach(item => {
+    // 3. PROSES RISK
+    risk.forEach(item => {
         let code = getUker(item.loan_account_id || item.NOREK || "");
         
         if (recap[code]) {
             let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
             let dpd = parseInt(item.dpd || 0);
 
-            // --- START SOLUSI NAMING INSTANSI (POINT 3) ---
+            // Normalisasi Nama Instansi (Grouping)
             let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
             let comp = rawComp;
 
-            // Logika Penyeragaman Nama
             if (rawComp.includes("WEDA BAY")) {
                 comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
             } else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) {
@@ -316,7 +299,6 @@
             } else if (rawComp.includes("HUAYUE")) {
                 comp = "PT. HUAYUE NICKEL COBALT";
             }
-            // --- END SOLUSI NAMING INSTANSI ---
             
             recap[code].tunggakan += tung;
             recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
@@ -333,7 +315,7 @@
 
     globalRecap = recap;
     
-    // Update Stats
+    // Update Stats UI
     document.getElementById('total-os').innerText = formatRupiah(totalOS);
     document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
     document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
@@ -341,7 +323,6 @@
 
     renderMarkers();
     renderTrendChart();
-    // Default view: Top 5 Cabang
     updateBarChart(recap, "Top 5 Cabang (Sales)", true);
 }
 
