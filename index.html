@@ -288,25 +288,45 @@
         }
 
 function renderRiskAreas() {
-            riskAreasLayer.clearLayers();
-            // Loop semua uker untuk cari perusahaan berisiko
-            Object.values(globalRecap).forEach(uker => {
-                Object.entries(uker.companies).forEach(([name, data]) => {
-                    // Cek jika koordinat ada dan DPD > 0 (artinya ada tunggakan)
-                    if (companyLocations[name] && data.dpd > 0) {
-                        const loc = companyLocations[name];
-                        const colorAura = data.dpd > 90 ? 'red' : '#ff9800'; // Merah jika NPL, Oranye jika DPK
-                        
-                        L.circle([loc.lat, loc.lng], {
-                            color: colorAura,
-                            fillColor: colorAura,
-                            fillOpacity: 0.2,
-                            radius: 80000 // Radius 80km
-                        }).addTo(riskAreasLayer).bindPopup(`<b>${name}</b><br>Status: ${data.dpd} DPD`);
-                    }
-                });
-            });
+    riskAreasLayer.clearLayers();
+    
+    // 1. Kumpulkan total data per instansi dari semua cabang
+    let aggregateComps = {};
+    Object.values(globalRecap).forEach(uker => {
+        Object.entries(uker.companies).forEach(([name, data]) => {
+            if (!aggregateComps[name]) {
+                aggregateComps[name] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+            }
+            aggregateComps[name].tunggakan += data.tunggakan;
+            aggregateComps[name].noaRisk += data.noaRisk;
+            aggregateComps[name].dpd = Math.max(aggregateComps[name].dpd, data.dpd);
+        });
+    });
+
+    // 2. Gambar Aura berdasarkan data agregat (Nasional)
+    Object.entries(aggregateComps).forEach(([name, data]) => {
+        if (companyLocations[name] && data.noaRisk > 0) {
+            const loc = companyLocations[name];
+            const colorAura = data.dpd > 90 ? '#e53e3e' : '#ecc94b';
+            
+            L.circle([loc.lat, loc.lng], {
+                color: colorAura,
+                fillColor: colorAura,
+                fillOpacity: 0.2,
+                radius: 120000 // Radius diperbesar jadi 120km biar jelas
+            }).addTo(riskAreasLayer)
+              .bindPopup(`
+                <div style="font-family:sans-serif;">
+                    <b>${name}</b><br/>
+                    <hr>
+                    Total NOA: <b>${data.noaRisk}</b><br/>
+                    Max DPD: <span style="color:red">${data.dpd} Hari</span><br/>
+                    Total Tunggakan: <b>${formatRupiah(data.tunggakan)}</b>
+                </div>
+              `);
         }
+    });
+}
 
         function renderTrendChart(data) {
             const ctx = document.getElementById('trendChart').getContext('2d');
@@ -338,21 +358,28 @@ function renderRiskAreas() {
     const list = document.getElementById('company-list');
     document.getElementById('company-info').style.display = 'block';
     
-    // Sort berdasarkan tunggakan terbesar
+    // Sort berdasarkan tunggakan terbesar dan ambil 10 teratas
     const sorted = Object.entries(comps)
-        .sort((a,b) => b[1].tunggakan - a[1].tunggakan);
+        .filter(([n, d]) => d.noaRisk > 0)
+        .sort((a, b) => b[1].tunggakan - a[1].tunggakan)
+        .slice(0, 10); // LIMIT 10 INSTANSI
+
+    if (sorted.length === 0) {
+        list.innerHTML = `<div style="font-size:11px; color:green; padding:10px;">Tidak ada data risiko terdeteksi.</div>`;
+        return;
+    }
 
     list.innerHTML = sorted.map(([n, d]) => `
-        <div class="company-item">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <b style="font-size:11px;">${n}</b> 
-                <span class="risk-badge" style="background:${d.dpd > 90 ? '#feb2b2' : (d.dpd > 0 ? '#faf089' : '#9ae6b4')}">
+        <div class="company-item" style="padding: 8px 0; border-bottom: 1px solid #edf2f7;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <b style="font-size:10px; flex:1; padding-right:5px;">${n}</b> 
+                <span class="risk-badge" style="background:${d.dpd > 90 ? '#feb2b2' : (d.dpd > 0 ? '#faf089' : '#9ae6b4')}; font-size:9px;">
                     ${d.dpd} DPD
                 </span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:3px;">
-                <small style="color:#666;">NOA: <b>${d.noaRisk}</b></small>
-                <small style="color:#e53e3e;"><b>${formatRupiah(d.tunggakan)}</b></small>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                <small style="color:#718096;">NOA: <b>${d.noaRisk}</b></small>
+                <small style="color:#e53e3e; font-weight:bold;">${formatRupiah(d.tunggakan)}</small>
             </div>
         </div>`).join('');
 }
