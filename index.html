@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Flexi 2026 - Data Terkonsolidasi</title>
+    <title>Dashboard Flexi 2026 - Realtime Marketing Performance</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -36,7 +36,7 @@
 
     <div id="loading-overlay">
         <div class="loader"></div>
-        <div id="loading-text">Memproses Data Flexi...</div>
+        <div id="loading-text">Memproses Data Flexi Terkini...</div>
     </div>
     
     <div class="header-title">STRATEGIC PERFORMANCE DASHBOARD 2026</div>
@@ -64,7 +64,7 @@
         
         <div class="chart-container">
             <span class="chart-label" id="bar-title">Top 5 Cabang (Sales)</span>
-            <div style="height: 180px;"><canvas id="barChart"></canvas></div>
+            <div style="height: 220px;"><canvas id="barChart"></canvas></div>
         </div>
         
         <div id="company-info" style="display: none;">
@@ -105,60 +105,8 @@
             "1520": { name: "CB PALEMBANG", lat: -2.9761, lng: 104.7754 },
             "1710": { name: "CB LAMPUNG", lat: -5.3971, lng: 105.2668 },
             "3210": { name: "CB MAKASSAR", lat: -5.1476, lng: 119.4327 },
-            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 }
-        };
-
-        // --- MAPPING RM ---
-        const rmReference = {
-            "RBO0020002108": "AULIA ZAHRA", "RBO4010002150": "NI KADEK VIDIA KRISNA DEVI",
-            "RBO0025000459": "IRFAN AGUSTIAN RIZA", "RBO0025001914": "SARKIM SIMANJUTAK",
-            "RBO0025002023": "MUHAMAD MOZA KANDIRA", "RBO0110002068": "ARDINO OKAJINARTA",
-            "RBO0140001932": "MONICA ACHIR PUTRI", "RBO0310000656": "FITRA AMIRANTI",
-            "RBO0310000731": "YUNI KUSTANTI", "RBO0320001113": "MANIK LINTANG SUH MAHLIGAI",
-            "RBO0330001779": "ENDRI AGUSTIN", "RBO0330002011": "RIZQIKA ARDHANI SRI REJEKI",
-            "RBO0330002012": "MUHAMMAD ADITYA MUZAKKY", "RBO0350001670": "NOVI SETYAWATI",
-            "RBO0350001947": "RAMADITYA BAYU PAMUNGKAS", "RBO0350001954": "GIGIH MANGGALA",
-            "RBO0350002009": "KRISNA ALI PASHA PRATAMA PUTRA", "RBO0350002075": "ANTON SUSILO PRABOWO",
-            "RBO0410000579": "AKHMAD DWI PRAYUGI", "RBO0411002058": "NAUFAL FEBI MAHARDIKA",
-            "RBO0411002088": "MILA AZZAHRO AINI", "RBO0420002047": "RACHMAD MAHENDRA PUTRA",
-            "RBO0420002066": "YUSUF BACHRI", "RBO0430002046": "MEGA AYU LESTARI",
-            "RBO0430002069": "EGA AYU PRAMITASARI", "RBO1110000220": "JUNI PURNAMA SARI SILABAN",
-            "RBO1110002070": "JANSEN VERNANDO SITOHANG", "RBO1310000366": "JELI NATALIAS",
-            "RBO1310000377": "DOLLY NAMORA LUBIS", "RBO1311000219": "ALPRIZA ULVI",
-            "RBO1311000661": "WANRA SITUMORANG", "RBO1311001930": "HARJA GUNADI",
-            "RBO1312000430": "PAJRI SUCI ANDRI", "RBO1312000583": "RUSTAMI",
-            "RBO1312000712": "ROMI NOVRIZON", "RBO1312001749": "CHRISTHANTY DESRIANI PURBA",
-            "RBO1312002098": "ROLY CHANDRA", "RBO1313000431": "HARRY SATRIA PUTRA",
-            "RBO1313000433": "WILLY DOZAN SAPUTRA", "RBO1313000543": "POPPY ISKANDAR",
-            "RBO1313001909": "NUR AZZURA", "RBO1314000765": "LUKMAN",
-            "RBO1314002101": "AMIRA HUSNI", "RBO1520001819": "VINKA ANDRIYANTI",
-            "RBO1520002071": "M BOY SYAHRAGA", "RBO1710000361": "RIA TIARA SARI",
-            "RBO1710001958": "WAWAN SAPUTRA", "RBO1710001959": "MELA AGUSTINA",
-            "RBO3210001185": "ADAM RUKMANA", "RBO0321001975": "RISKA PURNAMAYANTI",
-            "RBO4010001824": "GEDE MAHAPUTRA PRIYAMBADA", "RBO4010001826": "KETUT INDRIYANI",
-            "RBO4010001953": "VICTOR JOSHUA NUGROHO", "RBO0140002117": "ANGGA RISTIANA PRAYO",
-            "RBO0411002063": "DIESTA FITRIA AYUNINGRUM", "RBO1520001741": "EPIK HIDAYAT",
-            "RBO0025001096": "MOHAMMAD ILHAMSYAH RITO", "RBO1710001857": "VICARLIAN RINJANIE",
-            "RBO0410000134": "NUR AYU MEINARSARI", "RBO1710001680": "RAWAN",
-            "RBO1710001905": "RAHMAT WIDODO", "RBO0420002169": "DELLYANA SALSA",
-            "RBO1314002168": "MARTA ARIADI", "RBO1314002127": "VENY LUSIANA",
-            "RBO0320001973": "SYANINDITA ILHAM SHAFIRA FARAHDILA", "RBO0140002174": "RAHMIZAR REXY",
-            "SLP0010000067": "DAME SONDANG", "SLP0010000436": "EKO ARIF FIRMANSYAH",
-            "SLP0010000548": "GERRY KURNIAWAN", "SLP0010001007": "FAJAR HARISMA",
-            "SLP0010001012": "AJENG HERNI PERMATASARI", "SLP0010001027": "DITHA AFRODITA S",
-            "SLP0010001072": "REZRI DWITRAHURI", "SLP0010001114": "EKA SULISTYOWATI",
-            "SLP0010001183": "DESY AYU LESTARI", "SLP0010001200": "ADHIKA WIDYANTI TARINDRA",
-            "SLP0010001574": "M TEGAR PAMULA", "SLP0010001592": "FAIRNAN SUHARNOTO",
-            "SLP0010001599": "DESI APRIYANI", "SLP0010001639": "WINONA REI KATYUSHA",
-            "SLP0010001658": "FAIZ RIZQULLAH", "SLP0010001737": "RIYADITA HANNA KAMILAH",
-            "SLP0010001761": "SUNJOYO JATMIKO", "SLP0010001767": "RANGGA WICAKSONO",
-            "SLP0010001772": "DWIKA MAYA HARSANTI", "SLP0010001876": "MOCHAMAD YARA RANDIVA",
-            "SLP0010001948": "TOTI ANDRENA SIAHAAN", "SLP0010001965": "DONA INDRIASTUTI",
-            "SLP0010001996": "TSANIA RAHMA IZZATI", "SLP0010002003": "TIZANI AZALIA",
-            "SLP0010002024": "ICHWAN FAIZ AL AMIN", "SLP0010002035": "HANISA SHERLY YANA MEILADOFA",
-            "SLP0010002095": "NETHANIA KRISTIANTI", "SLP0010002114": "DHIAVANYA KASAUTA AZAHIRAH",
-            "SLP0010002120": "TRI BUANA NUGRAHANTI","RBO3210001185": "ADAM RUKMANA",
-            "3210001185": "ADAM RUKMANA",
+            "4010": { name: "CB DENPASAR", lat: -8.6705, lng: 115.2126 },
+            "9999": { name: "UKER LAINNYA", lat: -2.5, lng: 118.0 }
         };
 
         var map = L.map('map').setView([-2.5489, 118.0149], 5);
@@ -177,32 +125,19 @@
 
         function cleanVal(v) { return v ? parseFloat(String(v).replace(/[^0-9.-]+/g, "")) || 0 : 0; }
 
-  function getUker(id) {
-    if (!id) return "9999";
-    let idStr = id.toString().trim();
-    
-    // Ambil 4 digit pertama sebagai kode uker
-    let code = idStr.substring(0, 4);
-
-    // Validasi: Jika kode uker tidak ada di geoMapping, 
-    // coba bersihkan jika ada prefix nol yang hilang atau berlebih
-    if (!geoMapping[code]) {
-        // Cek jika ID hanya 3 digit uker di depan, tambahkan 0
-        let altCode = "0" + idStr.substring(0, 3);
-        if (geoMapping[altCode]) return altCode;
-        
-        // Jika tetap tidak ketemu, masukkan ke kategori UNKNOWN agar tidak hilang
-        if (!geoMapping["9999"]) {
-            geoMapping["9999"] = { name: "UKER LAINNYA", lat: -2.5, lng: 118.0 };
+        function getUker(id) {
+            if (!id) return "9999";
+            let idStr = id.toString().trim();
+            let code = idStr.substring(0, 4);
+            if (!geoMapping[code]) {
+                let altCode = "0" + idStr.substring(0, 3);
+                return geoMapping[altCode] ? altCode : "9999";
+            }
+            return code;
         }
-        return "9999";
-    }
-    return code;
-}
 
         async function loadData() {
             try {
-                // MEMBACA SATU FILE UTAMA
                 const resSales = await fetch(`data_pencairan_2026.csv`);
                 const resRisk = await fetch(`data_performance.csv`);
 
@@ -227,111 +162,90 @@
             }
         }
 
-  function processData(sales, risk) {
-    let recap = {};
-    let totalOS = 0, totalNOA = 0, totalRisk = 0;
-    
-    // 1. Inisialisasi awal Uker (HANYA yang ada di geoMapping)
-    Object.keys(geoMapping).forEach(c => {
-        recap[c] = { 
-            name: geoMapping[c].name, 
-            os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
-            marketings: {}, companies: {} 
-        };
-    });
-
-    // 2. PROSES SALES
-    sales.forEach(item => {
-        let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
-        let rawMktCode = (item.final_marketing_name || "").toString().trim().toUpperCase();
-
-        // --- LOGIKA BACKDOOR TOTAL ---
-        // Jika ukerCode tidak ada di geoMapping, kita paksa cari lewat Kode RM
-        if (!recap[ukerCode]) {
-            let potentialCode = rawMktCode.replace(/\D/g, '').substring(0, 4); 
+        function processData(sales, risk) {
+            let recap = {};
+            let totalOS = 0, totalNOA = 0, totalRisk = 0;
             
-            if (recap[potentialCode]) {
-                ukerCode = potentialCode;
-            } else {
-                // Jika RM juga tidak terdaftar, lempar ke CB MENARA BRILIAN (0010) sebagai fallback
-                // Daripada muncul "UKER LAINNYA" atau bikin error undefined
-                ukerCode = "0010"; 
-            }
-        }
+            Object.keys(geoMapping).forEach(c => {
+                recap[c] = { 
+                    name: geoMapping[c].name, 
+                    os: 0, noa: 0, tunggakan: 0, maxDpd: 0, 
+                    marketings: {}, companies: {} 
+                };
+            });
 
-        let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
-        let branchName = recap[ukerCode].name; // Sekarang dijamin tidak undefined
+            // --- PROSES SALES & MARKETING ---
+            sales.forEach(item => {
+                let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
+                
+                // Ambil data mentah dari kolom final_marketing_name
+                let rawMkt = (item.final_marketing_name || "").toString().trim().toUpperCase();
 
-        // Tentukan Nama RM untuk tampilan Chart
-        let mktDisplayName = branchName; 
-        if (rawMktCode && rmReference[rawMktCode]) {
-            mktDisplayName = rmReference[rawMktCode];
-        } else if (rmReference["RBO" + rawMktCode]) {
-            mktDisplayName = rmReference["RBO" + rawMktCode];
-        }
+                // Backdoor: jika uker gagal di-map, tebak dari string marketing
+                if (!recap[ukerCode] || ukerCode === "9999") {
+                    let potential = rawMkt.replace(/\D/g, '').substring(0, 4);
+                    if(recap[potential]) ukerCode = potential;
+                    else ukerCode = "0010"; 
+                }
 
-        // Akumulasi ke Cabang
-        recap[ukerCode].os += amt;
-        recap[ukerCode].noa += 1;
+                let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
+                
+                // Gunakan isi kolom langsung, jika kosong fallback ke nama cabang
+                let mktName = rawMkt ? rawMkt : recap[ukerCode].name;
 
-        // Akumulasi ke RM
-        if (!recap[ukerCode].marketings[mktDisplayName]) {
-            recap[ukerCode].marketings[mktDisplayName] = { os: 0, noa: 0 };
-        }
-        recap[ukerCode].marketings[mktDisplayName].os += amt;
-        recap[ukerCode].marketings[mktDisplayName].noa += 1;
+                recap[ukerCode].os += amt;
+                recap[ukerCode].noa += 1;
 
-        totalOS += amt;
-        totalNOA += 1;
-    });
+                // Grouping by Marketing Name
+                if (!recap[ukerCode].marketings[mktName]) {
+                    recap[ukerCode].marketings[mktName] = { os: 0, noa: 0 };
+                }
+                recap[ukerCode].marketings[mktName].os += amt;
+                recap[ukerCode].marketings[mktName].noa += 1;
 
-    // 3. PROSES RISK (Sama seperti sebelumnya tapi pastikan aman dari undefined)
-    risk.forEach(item => {
-        let code = getUker(item.loan_account_id || item.NOREK || "");
-        
-        // Jika kode risk tidak ada di map, coba cari via RM (jika kolom RM ada di data risk)
-        if (!recap[code]) {
-            let potential = (item.final_marketing_name || "").toString().replace(/\D/g, '').substring(0, 4);
-            code = recap[potential] ? potential : "0010";
-        }
+                totalOS += amt;
+                totalNOA += 1;
+            });
 
-        if (recap[code]) {
-            let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
-            let dpd = parseInt(item.dpd || 0);
+            // --- PROSES RISK ---
+            risk.forEach(item => {
+                let code = getUker(item.loan_account_id || item.NOREK || "");
+                if (!recap[code]) code = "0010";
 
-            let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
-            let comp = rawComp;
-            if (rawComp.includes("WEDA BAY")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
-            else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
-            else if (rawComp.includes("HUAYUE")) comp = "PT. HUAYUE NICKEL COBALT";
+                let tung = cleanVal(item.total_tunggakan || item.BAKI_DEBET || 0);
+                let dpd = parseInt(item.dpd || 0);
+
+                let rawComp = (item.company || "ORGANIC").toUpperCase().trim();
+                let comp = rawComp;
+                // Grouping instansi agar tidak duplicate (IWIP/IMIP)
+                if (rawComp.includes("WEDA BAY")) comp = "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)";
+                else if (rawComp.includes("MOROWALI") || rawComp.includes("IMIP")) comp = "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)";
+                
+                recap[code].tunggakan += tung;
+                recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+
+                if (!recap[code].companies[comp]) {
+                    recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
+                }
+                recap[code].companies[comp].tunggakan += tung;
+                recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
+                recap[code].companies[comp].noaRisk += 1;
+                totalRisk += tung;
+            });
+
+            globalRecap = recap;
             
-            recap[code].tunggakan += tung;
-            recap[code].maxDpd = Math.max(recap[code].maxDpd, dpd);
+            document.getElementById('total-os').innerText = formatRupiah(totalOS);
+            document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
+            document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
+            document.getElementById('loading-overlay').style.display = 'none';
 
-            if (!recap[code].companies[comp]) {
-                recap[code].companies[comp] = { tunggakan: 0, dpd: 0, noaRisk: 0 };
-            }
-            recap[code].companies[comp].tunggakan += tung;
-            recap[code].companies[comp].dpd = Math.max(recap[code].companies[comp].dpd, dpd);
-            recap[code].companies[comp].noaRisk += 1;
-            totalRisk += tung;
+            renderMarkers();
+            renderTrendChart();
+            updateBarChart(recap, "Top 5 Cabang (Sales)", true);
         }
-    });
 
-    globalRecap = recap;
-    
-    // Update Stats UI
-    document.getElementById('total-os').innerText = formatRupiah(totalOS);
-    document.getElementById('total-noa').innerText = totalNOA.toLocaleString('id-ID');
-    document.getElementById('total-risk').innerText = formatRupiah(totalRisk);
-    document.getElementById('loading-overlay').style.display = 'none';
-
-    renderMarkers();
-    renderTrendChart();
-    updateBarChart(recap, "Top 5 Cabang (Sales)", true);
-}
-
-function renderMarkers() {
+        function renderMarkers() {
             Object.keys(globalRecap).forEach(c => {
                 const d = globalRecap[c];
                 if (d.os === 0 && d.tunggakan === 0) return;
@@ -364,12 +278,33 @@ function renderMarkers() {
             const ctx = document.getElementById('barChart').getContext('2d');
             if (barChart) barChart.destroy();
             document.getElementById('bar-title').innerText = title;
-            let entries = isBranch ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
+            
+            let entries = isBranch 
+                ? Object.entries(source).map(x => [x[1].name, x[1].os, x[1].noa]) 
+                : Object.entries(source).map(x => [x[0], x[1].os, x[1].noa]);
+            
             let sorted = entries.sort((a,b) => b[1] - a[1]).slice(0, 5);
+            
             barChart = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: sorted.map(x => x[0]), datasets: [{ data: sorted.map(x => x[1]), backgroundColor: '#00529c', borderRadius: 4, noa: sorted.map(x => x[2]) }] },
-                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` } } }, scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } }
+                data: { 
+                    labels: sorted.map(x => x[0]), 
+                    datasets: [{ 
+                        data: sorted.map(x => x[1]), 
+                        backgroundColor: '#00529c', 
+                        borderRadius: 4, 
+                        noa: sorted.map(x => x[2]) 
+                    }] 
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { callbacks: { label: (c) => `OS: ${formatRupiah(c.parsed.x)} | NOA: ${c.dataset.noa[c.dataIndex]}` } } 
+                    }, 
+                    scales: { x: { display: false }, y: { ticks: { font: { size: 8 } } } } 
+                }
             });
         }
 
