@@ -244,9 +244,21 @@
     sales.forEach(item => {
         let ukerCode = getUker(item.loan_account_id || item.NOREK || "");
         
-        // Safety: Masukkan ke '9999' jika uker tidak terdaftar di mapping
+        // --- LOGIKA BACKDOOR: Jika Uker tidak dikenal, intip Kode RM ---
+        if (!recap[ukerCode] || ukerCode === "9999") {
+            let rawMkt = (item.final_marketing_name || "").toString().trim().toUpperCase();
+            // Ambil 4 digit angka pertama dari kode RM (Contoh: RBO0321... -> 0321)
+            // Kita coba mapping balik: Jika RM-nya 0321, maka cabangnya pasti 0320 atau 0321
+            let potentialCode = rawMkt.replace(/\D/g, '').substring(0, 4); 
+            
+            if (recap[potentialCode]) {
+                ukerCode = potentialCode;
+            } else {
+                ukerCode = "9999"; // Tetap 9999 jika RM pun tidak teridentifikasi
+            }
+        }
+
         if (!recap[ukerCode]) {
-            ukerCode = "9999";
             if (!recap["9999"]) {
                 recap["9999"] = { name: "UKER LAINNYA", os: 0, noa: 0, tunggakan: 0, maxDpd: 0, marketings: {}, companies: {} };
             }
@@ -255,9 +267,9 @@
         let amt = cleanVal(item.approved_amount || item.PLAFOND || 0);
         let branchName = recap[ukerCode].name;
 
-        // Normalisasi Kode RM (Adam Rukmana fix)
+        // RM Logic (Adam Rukmana & Others)
         let rawMktCode = (item.final_marketing_name || "").toString().trim().toUpperCase();
-        let mktDisplayName = branchName; // Default ke nama cabang
+        let mktDisplayName = branchName; 
 
         if (rawMktCode && rmReference[rawMktCode]) {
             mktDisplayName = rmReference[rawMktCode];
@@ -265,11 +277,10 @@
             mktDisplayName = rmReference["RBO" + rawMktCode];
         }
 
-        // Akumulasi Cabang
+        // Akumulasi
         recap[ukerCode].os += amt;
         recap[ukerCode].noa += 1;
 
-        // Akumulasi RM
         if (!recap[ukerCode].marketings[mktDisplayName]) {
             recap[ukerCode].marketings[mktDisplayName] = { os: 0, noa: 0 };
         }
