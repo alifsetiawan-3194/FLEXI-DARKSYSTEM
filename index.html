@@ -7,6 +7,29 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
+        .custom-pin {
+    width: 20px;
+    height: 20px;
+    border-radius: 50% 50% 50% 0;
+    background: #00529c; /* Warna Biru BRI */
+    position: absolute;
+    transform: rotate(-45deg);
+    left: 50%;
+    top: 50%;
+    margin: -15px 0 0 -15px;
+    border: 2px solid #fff;
+    box-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+}
+
+.custom-pin::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin: 4px 0 0 4px;
+    background: #fff;
+    position: absolute;
+    border-radius: 50%;
+}
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Roboto', sans-serif; background: #f4f7f6; overflow: hidden; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         .header-title {
@@ -81,6 +104,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
+        // Taruh di bagian atas script, dekat geoMapping
+const companyLocations = {
+    "PT. INDONESIA WEDA BAY INDUSTRIAL PARK (IWIP)": { lat: 0.5015, lng: 127.9150 },
+    "PT. INDONESIA MOROWALI INDUSTRIAL PARK (IMIP)": { lat: -2.8450, lng: 122.1520 },
+    "PT. SINAR WIJAYA PLYWOOD INDUSTRIES (SWPI)": { lat: -1.4789, lng: 102.1345 },
+    "PT. PRIMAC PERKASA INDONESIA": { lat: -6.2146, lng: 106.8451 },
+    "PT. LANDASAN TEKNIK LESTARI": { lat: -1.2691, lng: 116.8253 },
+    "PT. FORMUSA BAG INDONESIA": { lat: -7.1147, lng: 110.4214 },
+    "PT. PRIMA KARYA SARANA SEJAHTERA (PKSS)": { lat: -6.2205, lng: 106.8184 }
+};
         // --- MAPPING CABANG ---
         const geoMapping = {
             "0010": { name: "CB MENARA BRILIAN", lat: -6.220556, lng: 106.818444 },
@@ -243,22 +276,59 @@ function getUker(id) {
     updateBarChart(recap, "Top 3 Cabang (Sales)", true);
 }
 
-        function renderMarkers() {
-            Object.keys(globalRecap).forEach(c => {
-                const d = globalRecap[c];
-                if (d.os === 0 && d.tunggakan === 0) return;
-                let color = d.maxDpd > 90 ? "#e53e3e" : (d.maxDpd > 0 ? "#f6e05e" : "#27ae60");
-                let marker = L.circleMarker([geoMapping[c].lat, geoMapping[c].lng], {
-                    radius: Math.max(8, Math.min(25, d.os / 250000000)),
-                    fillColor: color, color: "white", weight: 2, fillOpacity: 0.8
-                }).addTo(map);
-                marker.bindPopup(`<b>${d.name}</b><hr>Sales: ${formatRupiah(d.os)}<br>NOA: ${d.noa}<br>Risk: ${formatRupiah(d.tunggakan)}`);
-                marker.on('click', () => {
-                    updateBarChart(d.marketings, `Top RM - ${d.name}`, false);
-                    updateCompanyRisk(d.companies);
-                });
+       function renderMarkers() {
+    markersLayer.clearLayers();
+    
+    Object.keys(globalRecap).forEach(code => {
+        const uker = globalRecap[code];
+        const mapping = geoMapping[code];
+        
+        if (mapping) {
+            // Kita buat icon jarum yang ramping
+            const pinIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class='custom-pin'></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
             });
+
+            const marker = L.marker([mapping.lat, mapping.lng], { icon: pinIcon })
+                .bindPopup(`
+                    <div style="font-family: Arial; font-size: 12px;">
+                        <strong>${uker.name}</strong><br>
+                        Sales: ${formatRupiah(uker.os)}<br>
+                        Risk: ${formatRupiah(uker.tunggakan)}
+                    </div>
+                `);
+            
+            marker.on('click', () => {
+                updateSidebar(code);
+            });
+            
+            markersLayer.addLayer(marker);
         }
+    });
+}
+
+        function renderRiskAreas() {
+    // Kita looping dari data globalRecap yang sudah diproses
+    Object.values(globalRecap).forEach(uker => {
+        Object.entries(uker.companies).forEach(([name, data]) => {
+            // Cek apakah perusahaan ini ada di daftar koordinat kita dan punya DPD tinggi
+            if (companyLocations[name] && data.dpd > 30) {
+                const loc = companyLocations[name];
+                
+                // Tambahkan Lingkaran Transparan sebagai "Warna Area"
+                L.circle([loc.lat, loc.lng], {
+                    color: 'red',
+                    fillColor: '#f03',
+                    fillOpacity: 0.2, // Tipis-tipis aja biar artistik
+                    radius: 150000 // Radius 150km (sesuaikan kebutuhan)
+                }).addTo(map).bindPopup(`<b>Area Risiko Tinggi:</b><br>${name}<br>Max DPD: ${data.dpd}`);
+            }
+        });
+    });
+}
 
         function renderTrendChart() {
             const ctx = document.getElementById('trendChart').getContext('2d');
